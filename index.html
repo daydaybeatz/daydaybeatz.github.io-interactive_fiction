@@ -94,6 +94,9 @@
     @keyframes spin{to{transform:rotate(360deg);}}
     .item-grid{display:flex;flex-direction:column;gap:10px;}
     .item-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);}
+    .item-row.selectable{cursor:pointer;transition:border .15s ease,transform .05s ease;}
+    .item-row.selectable:hover{border-color:var(--accent);transform:translateY(-1px);}
+    .item-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px rgba(91,209,255,0.3);}
     .item-name{font-weight:600;}
     .item-meta{font-size:12px;color:var(--muted);}
     .item-actions{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto;}
@@ -103,7 +106,22 @@
     .chip.rare{color:#5bd1ff;}
     .chip.epic{color:#c3a1ff;}
     .chip.legendary{color:#ffcf6a;}
+    .inventory-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr);gap:12px;align-items:start;}
+    .subtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+    .subtabs button{flex:1 1 120px;justify-content:center;text-align:center;min-height:38px;padding:8px 10px;background:#0f111a;}
+    .subtabs button.active{border-color:var(--accent);background:rgba(91,209,255,0.08);}
+    .subscreen{display:none;}
+    .subscreen.active{display:block;}
+    .command-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;gap:10px;}
+    .command-title{font-size:15px;font-weight:600;}
+    .stat-list{display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:13px;color:var(--muted);}
+    .stat-list span{color:#e8edf7;}
+    .action-grid{display:flex;flex-wrap:wrap;gap:8px;}
+    .command-hint{font-size:12px;color:var(--muted);}
+    .status-toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);}
+    .status-toggle button{min-height:36px;padding:6px 10px;}
     @media(max-width:900px){header{position:static;} .two-col{grid-template-columns:1fr;} .tab-buttons button{flex:1 1 100%;}}
+    @media(max-width:900px){.inventory-layout{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -161,7 +179,14 @@
             </section>
             <section class="panel">
               <h3>Incoming Haul</h3>
-              <div id="haul"></div>
+              <div class="inventory-layout">
+                <div id="haul"></div>
+                <div class="command-card">
+                  <div class="command-title">Haul Command Card</div>
+                  <div id="haulDetail" class="command-hint">Select loot to route it into your rig.</div>
+                  <div class="action-grid" id="haulActions"></div>
+                </div>
+              </div>
             </section>
             <section class="panel">
               <h3>Idle Operations</h3>
@@ -207,15 +232,61 @@
       <div id="tab-inventory" class="tab-content">
         <section class="panel">
           <h3>Backpack & Loadout</h3>
-          <div class="inventory" id="inventory"></div>
+          <div class="subtabs" id="inventoryNav">
+            <button data-inv-screen="backpack" class="active">Backpack</button>
+            <button data-inv-screen="loadout">Loadout</button>
+          </div>
+          <div class="inventory-layout">
+            <div>
+              <div id="inventoryBackpack" class="subscreen active">
+                <h4>Backpack Contents <span class="small" id="backpackCount"></span></h4>
+                <div class="item-grid" id="inventory"></div>
+              </div>
+              <div id="inventoryLoadout" class="subscreen">
+                <h4>Equipped Loadout <span class="small" id="loadoutCount"></span></h4>
+                <div class="item-grid" id="equipment"></div>
+              </div>
+            </div>
+            <div class="command-card">
+              <div class="command-title">Loadout Command Card</div>
+              <div id="itemDetail" class="command-hint">Select gear to view stats, uses, and actions.</div>
+              <div class="action-grid" id="itemActions"></div>
+            </div>
+          </div>
           <div class="small" id="codex"></div>
         </section>
       </div>
       <div id="tab-field" class="tab-content">
         <section class="panel">
           <h3>Stash Vault</h3>
-          <div id="stash"></div>
-          <div id="stashActions"></div>
+          <div class="subtabs" id="stashNav">
+            <button data-stash-screen="vault" class="active">Vault</button>
+            <button data-stash-screen="market">Market Dock</button>
+          </div>
+          <div class="inventory-layout">
+            <div>
+              <div id="stashVault" class="subscreen active">
+                <h4>Vault Inventory <span class="small" id="stashCount"></span></h4>
+                <div id="stash"></div>
+              </div>
+              <div id="stashMarket" class="subscreen">
+                <div class="command-card">
+                  <div class="command-title">Market Dock Status</div>
+                  <div class="status-toggle">
+                    <span id="shopStatus">Docked: No</span>
+                    <button id="toggleShop" class="btn-secondary">Request docking clearance</button>
+                  </div>
+                  <div class="command-hint">Docking grants sell access. Scrap processing is always available.</div>
+                  <div id="stashActions"></div>
+                </div>
+              </div>
+            </div>
+            <div class="command-card">
+              <div class="command-title">Vault Command Card</div>
+              <div id="stashDetail" class="command-hint">Select stash items to transfer, scrap, or sell.</div>
+              <div class="action-grid" id="stashItemActions"></div>
+            </div>
+          </div>
           <p class="small">Move loot from the haul into long-term storage, or liquidate overflow for credits.</p>
         </section>
       </div>
@@ -258,7 +329,11 @@
       zone:{id:'drift-yard',name:'Drift Yard',risk:'low',desc:'Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.'},
       screen:'main',
       travel:{active:false,endsAt:null,target:null},
-      mission:{active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:''}
+      mission:{active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:''},
+      inventoryScreen:'backpack',
+      stashScreen:'vault',
+      selected:{source:null,item:null},
+      atShop:false
     };
 
     const ITEM_CATALOG={
@@ -315,7 +390,12 @@
       zoneBadge:document.getElementById('zoneBadge'),
       raidActions:document.getElementById('raidActions'),
       haul:document.getElementById('haul'),
+      haulDetail:document.getElementById('haulDetail'),
+      haulActions:document.getElementById('haulActions'),
       inventory:document.getElementById('inventory'),
+      equipment:document.getElementById('equipment'),
+      backpackCount:document.getElementById('backpackCount'),
+      loadoutCount:document.getElementById('loadoutCount'),
       codex:document.getElementById('codex'),
       log:document.getElementById('log'),
       idleOps:document.getElementById('idleOps'),
@@ -337,6 +417,23 @@
       missionActions:document.getElementById('missionActions'),
       stash:document.getElementById('stash'),
       stashActions:document.getElementById('stashActions'),
+      stashDetail:document.getElementById('stashDetail'),
+      stashItemActions:document.getElementById('stashItemActions'),
+      stashCount:document.getElementById('stashCount'),
+      itemDetail:document.getElementById('itemDetail'),
+      itemActions:document.getElementById('itemActions'),
+      inventoryNav:Array.from(document.querySelectorAll('#inventoryNav button')),
+      inventoryScreens:{
+        backpack:document.getElementById('inventoryBackpack'),
+        loadout:document.getElementById('inventoryLoadout')
+      },
+      stashNav:Array.from(document.querySelectorAll('#stashNav button')),
+      stashScreens:{
+        vault:document.getElementById('stashVault'),
+        market:document.getElementById('stashMarket')
+      },
+      shopStatus:document.getElementById('shopStatus'),
+      toggleShop:document.getElementById('toggleShop'),
       tabs:document.querySelector('.tabs'),
       tabButtons:Array.from(document.querySelectorAll('.tab-buttons button')),
       tabContents:{
@@ -366,6 +463,30 @@
 
     const removeItem=(arr,item)=>{const idx=arr.indexOf(item); if(idx>=0) arr.splice(idx,1);};
     const getItem=(id)=>ITEM_CATALOG[id] || {type:'junk',rarity:'common',value:1};
+    const formatMods=(mods)=>{
+      if(!mods) return [];
+      return Object.entries(mods).map(([key,val])=>{
+        const label=key.replace(/([A-Z])/g,' $1').toLowerCase();
+        const sign=val>0?'+':'';
+        return `${label} ${sign}${val}`;
+      });
+    };
+    const formatEffects=(effect)=>{
+      if(!effect) return [];
+      return effect.split(',').map(token=>token.trim()).filter(Boolean).map(token=>{
+        if(token.startsWith('item:')) return `Adds item: ${token.slice(5).trim()}`;
+        if(token.startsWith('note:')) return token.slice(5).trim();
+        if(token.startsWith('log:')) return token.slice(4).trim();
+        if(token.startsWith('flag:')) return `Flags ${token.slice(5).trim()}`;
+        const match=token.match(/([a-zA-Z]+)([+-]\d+)/);
+        if(match){
+          const stat=match[1];
+          const delta=match[2];
+          return `${stat} ${delta}`;
+        }
+        return token;
+      });
+    };
     const groupItems=(items)=>{
       const tally=items.reduce((acc,item)=>{
         acc[item]=(acc[item]||0)+1;
@@ -439,6 +560,7 @@
       }
       removeItem(state.inventory,item);
       state.equipped.push(item);
+      state.selected={source:'equipped',item};
       setCodex(`${item} equipped.`);
       logMsg(`Equipped ${item}.`);
       renderAll();
@@ -446,6 +568,7 @@
     function unequipItem(item){
       removeItem(state.equipped,item);
       state.inventory.push(item);
+      state.selected={source:'inventory',item};
       setCodex(`${item} stowed.`);
       logMsg(`Unequipped ${item}.`);
       renderAll();
@@ -456,6 +579,7 @@
         applyEffects(data.effect,'success');
       }
       removeItem(state.inventory,item);
+      state.selected={source:null,item:null};
       logMsg(`Consumed ${item}.`);
       setCodex(`${item} used.`);
       renderAll();
@@ -467,6 +591,7 @@
       }
       removeItem(state.inventory,item);
       state.stash.items.push(item);
+      state.selected={source:'stash',item};
       setCodex(`${item} stored in ${state.stash.name}.`);
       logMsg(`Stored ${item} in ${state.stash.name}.`);
       renderAll();
@@ -478,14 +603,20 @@
       }
       removeItem(state.stash.items,item);
       state.inventory.push(item);
+      state.selected={source:'inventory',item};
       setCodex(`${item} withdrawn from ${state.stash.name}.`);
       logMsg(`Retrieved ${item} from ${state.stash.name}.`);
       renderAll();
     }
     function sellItem(item){
+      if(!state.atShop){
+        setCodex('Dock at the market to sell items.');
+        return;
+      }
       const data=getItem(item);
       removeItem(state.inventory,item);
       state.credits+=data.value || 1;
+      state.selected={source:null,item:null};
       logMsg(`Sold ${item} for ${data.value || 1} credits.`);
       renderAll();
     }
@@ -494,6 +625,7 @@
       removeItem(state.inventory,item);
       const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
       state.scrap+=salvage;
+      state.selected={source:null,item:null};
       logMsg(`Dismantled ${item} for ${salvage} scrap.`);
       renderAll();
     }
@@ -561,79 +693,153 @@
         `<span class="pill-inline"><b>Day</b>${state.day}</span>`;
     }
 
-    function renderInventory(){
-      dom.inventory.innerHTML='';
-      const buildSection=(title,items,emptyText,actionsBuilder)=>{
-        const wrap=document.createElement('div');
-        wrap.className='item-grid';
-        const heading=document.createElement('h4');
-        heading.textContent=title;
-        wrap.appendChild(heading);
-        if(!items.length){
-          const span=document.createElement('span');
-          span.className='small';
-          span.textContent=emptyText;
-          wrap.appendChild(span);
-        }else{
-          groupItems(items).forEach(({id,count,data})=>{
-            const row=document.createElement('div');
-            row.className='item-row';
-            const name=document.createElement('div');
-            name.className='item-name';
-            name.textContent=`${id} ×${count}`;
-            const meta=document.createElement('div');
-            meta.className='item-meta';
-            meta.textContent=`${data.type} · ${data.value || 1} cr`;
-            const chip=document.createElement('span');
-            chip.className=`chip ${data.rarity}`;
-            chip.textContent=data.rarity;
-            const actions=document.createElement('div');
-            actions.className='item-actions';
-            actionsBuilder(id,data,actions);
-            row.appendChild(name);
-            row.appendChild(chip);
-            row.appendChild(meta);
-            row.appendChild(actions);
-            wrap.appendChild(row);
-          });
-        }
-        dom.inventory.appendChild(wrap);
+    function buildItemRow({id,count,data,source}){
+      const row=document.createElement('div');
+      row.className='item-row selectable';
+      if(state.selected.source===source && state.selected.item===id){
+        row.classList.add('selected');
+      }
+      row.onclick=()=>selectItem(source,id);
+      const name=document.createElement('div');
+      name.className='item-name';
+      name.textContent=`${id} ×${count}`;
+      const meta=document.createElement('div');
+      meta.className='item-meta';
+      meta.textContent=`${data.type} · ${data.value || 1} cr`;
+      const chip=document.createElement('span');
+      chip.className=`chip ${data.rarity}`;
+      chip.textContent=data.rarity;
+      row.appendChild(name);
+      row.appendChild(chip);
+      row.appendChild(meta);
+      return row;
+    }
+
+    function renderItemDetails(){
+      let {source,item}=state.selected;
+      const sourceHasItem=()=>{
+        if(!source || !item) return false;
+        if(source==='inventory') return state.inventory.includes(item);
+        if(source==='equipped') return state.equipped.includes(item);
+        if(source==='stash') return state.stash.items.includes(item);
+        if(source==='haul') return state.lootQueue.includes(item);
+        return false;
       };
-
-      buildSection(`Equipped Loadout (${state.equipped.length}/${equipmentLimit})`,state.equipped,'Nothing equipped yet.',(id,data,actions)=>{
-        const btn=document.createElement('button');
-        btn.textContent='Unequip';
-        btn.onclick=()=>unequipItem(id);
-        actions.appendChild(btn);
+      if(source && item && !sourceHasItem()){
+        state.selected={source:null,item:null};
+        source=null;
+        item=null;
+      }
+      const data=item?getItem(item):null;
+      const targets=[
+        {detail:dom.itemDetail,actions:dom.itemActions,default:'Select gear to view stats, uses, and actions.'},
+        {detail:dom.stashDetail,actions:dom.stashItemActions,default:'Select stash items to transfer, scrap, or sell.'},
+        {detail:dom.haulDetail,actions:dom.haulActions,default:'Select loot to route it into your rig.'}
+      ];
+      targets.forEach(target=>{
+        if(!target.detail || !target.actions) return;
+        if(!item || !data){
+          target.detail.innerHTML=`<div class="command-hint">${target.default}</div>`;
+        }else{
+          const mods=formatMods(data.mods);
+          const effects=formatEffects(data.effect);
+          const uses=[];
+          if(data.type==='consumable') uses.push('Consume for field boost.');
+          if(['tool','armor'].includes(data.type)) uses.push('Equip to gain passive bonuses.');
+          if(data.type==='junk') uses.push('Break down for scrap.');
+          if(data.type==='key') uses.push('Unlocks lockbox raids.');
+          target.detail.innerHTML=`
+            <div class="command-title">${item}</div>
+            <div class="stat-list">
+              <div>Type</div><span>${data.type}</span>
+              <div>Rarity</div><span>${data.rarity}</span>
+              <div>Value</div><span>${data.value || 1} credits</span>
+              ${data.salvage ? `<div>Salvage</div><span>${data.salvage} scrap</span>` : ''}
+            </div>
+            ${uses.length ? `<div class="small">${uses.join(' ')}</div>` : ''}
+            ${effects.length ? `<div class="small"><b>Effects:</b> ${effects.join(' · ')}</div>` : ''}
+            ${mods.length ? `<div class="small"><b>Mods:</b> ${mods.join(' · ')}</div>` : ''}
+          `;
+        }
+        target.actions.innerHTML='';
       });
+      if(!item || !data) return;
 
-      buildSection(`Backpack (${state.inventory.length}/${state.backpackLimit})`,state.inventory,'No gear collected.',(id,data,actions)=>{
+      const actionConfigs=[];
+      if(source==='inventory'){
         if(['tool','armor'].includes(data.type)){
-          const equip=document.createElement('button');
-          equip.textContent='Equip';
-          equip.onclick=()=>equipItem(id);
-          actions.appendChild(equip);
+          actionConfigs.push({label:'Deploy to loadout',action:()=>equipItem(item),disabled:state.equipped.length>=equipmentLimit});
         }
         if(data.type==='consumable'){
-          const use=document.createElement('button');
-          use.textContent='Use';
-          use.onclick=()=>consumeItem(id);
-          actions.appendChild(use);
+          actionConfigs.push({label:'Use item',action:()=>consumeItem(item)});
         }
-        const stashBtn=document.createElement('button');
-        stashBtn.textContent='Stash';
-        stashBtn.onclick=()=>stashItem(id);
-        actions.appendChild(stashBtn);
-        const sell=document.createElement('button');
-        sell.textContent='Sell';
-        sell.onclick=()=>sellItem(id);
-        actions.appendChild(sell);
-        const dismantle=document.createElement('button');
-        dismantle.textContent='Scrap';
-        dismantle.onclick=()=>dismantleItem(id);
-        actions.appendChild(dismantle);
+        actionConfigs.push({label:'Route to vault',action:()=>stashItem(item),disabled:state.stash.items.length>=state.stashLimit});
+        actionConfigs.push({label:'Break down for scrap',action:()=>dismantleItem(item)});
+        actionConfigs.push({label:'Sell to market',action:()=>sellItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
+      }else if(source==='equipped'){
+        actionConfigs.push({label:'Return to backpack',action:()=>unequipItem(item),disabled:state.inventory.length>=state.backpackLimit});
+      }else if(source==='stash'){
+        actionConfigs.push({label:'Withdraw to backpack',action:()=>unstashItem(item),disabled:state.inventory.length>=state.backpackLimit});
+        actionConfigs.push({label:'Break down for scrap',action:()=>scrapStashItem(item)});
+        actionConfigs.push({label:'Sell to market',action:()=>sellStashItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
+      }else if(source==='haul'){
+        actionConfigs.push({label:'Pack into backpack',action:()=>moveLootItem(item,'inventory'),disabled:state.inventory.length>=state.backpackLimit});
+        actionConfigs.push({label:'Store in vault',action:()=>moveLootItem(item,'stash'),disabled:state.stash.items.length>=state.stashLimit});
+        actionConfigs.push({label:'Break down for scrap',action:()=>scrapLootItem(item)});
+        actionConfigs.push({label:'Sell to market',action:()=>sellLootItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
+      }
+      targets.forEach(target=>{
+        if(!target.actions) return;
+        actionConfigs.forEach(cfg=>{
+          const btn=document.createElement('button');
+          btn.textContent=cfg.label;
+          if(cfg.disabled){
+            btn.disabled=true;
+            if(cfg.blockedHint){
+              btn.title=cfg.blockedHint;
+            }
+          }
+          btn.onclick=cfg.action;
+          target.actions.appendChild(btn);
+        });
+        if(!actionConfigs.length){
+          const msg=document.createElement('div');
+          msg.className='command-hint';
+          msg.textContent='No actions available.';
+          target.actions.appendChild(msg);
+        }
       });
+    }
 
+    function renderInventory(){
+      dom.inventory.innerHTML='';
+      dom.equipment.innerHTML='';
+      if(!state.inventory.length){
+        const empty=document.createElement('div');
+        empty.className='muted-box';
+        empty.textContent='Backpack empty. Run raids to pull more loot.';
+        dom.inventory.appendChild(empty);
+      }else{
+        groupItems(state.inventory).forEach(({id,count,data})=>{
+          dom.inventory.appendChild(buildItemRow({id,count,data,source:'inventory'}));
+        });
+      }
+      if(!state.equipped.length){
+        const empty=document.createElement('div');
+        empty.className='muted-box';
+        empty.textContent='Loadout slots open. Equip tools or armor.';
+        dom.equipment.appendChild(empty);
+      }else{
+        groupItems(state.equipped).forEach(({id,count,data})=>{
+          dom.equipment.appendChild(buildItemRow({id,count,data,source:'equipped'}));
+        });
+      }
+      if(dom.backpackCount){
+        dom.backpackCount.textContent=`(${state.inventory.length}/${state.backpackLimit})`;
+      }
+      if(dom.loadoutCount){
+        dom.loadoutCount.textContent=`(${state.equipped.length}/${equipmentLimit})`;
+      }
       dom.codex.textContent = state.codex[state.codex.length-1] || '';
     }
 
@@ -716,6 +922,50 @@
     dom.tabButtons.forEach(btn=>{
       btn.onclick=()=>{ activeTab=btn.dataset.tab; syncTabs(); };
     });
+
+    function setInventoryScreen(screen){
+      state.inventoryScreen=screen;
+      dom.inventoryNav.forEach(btn=>{
+        btn.classList.toggle('active',btn.dataset.invScreen===screen);
+      });
+      Object.entries(dom.inventoryScreens).forEach(([id,el])=>{
+        el.classList.toggle('active',id===screen);
+      });
+    }
+
+    function setStashScreen(screen){
+      state.stashScreen=screen;
+      dom.stashNav.forEach(btn=>{
+        btn.classList.toggle('active',btn.dataset.stashScreen===screen);
+      });
+      Object.entries(dom.stashScreens).forEach(([id,el])=>{
+        el.classList.toggle('active',id===screen);
+      });
+    }
+
+    dom.inventoryNav.forEach(btn=>{
+      btn.onclick=()=>setInventoryScreen(btn.dataset.invScreen);
+    });
+
+    dom.stashNav.forEach(btn=>{
+      btn.onclick=()=>setStashScreen(btn.dataset.stashScreen);
+    });
+
+    if(dom.toggleShop){
+      dom.toggleShop.onclick=()=>{
+        state.atShop=!state.atShop;
+        logMsg(state.atShop ? 'Docked at the market. Vendors ready.' : 'Undocked from the market. Vendors offline.');
+        renderAll();
+      };
+    }
+
+    function selectItem(source,item){
+      state.selected={source,item};
+      renderItemDetails();
+      renderInventory();
+      renderStash();
+      renderHaul();
+    }
 
     function setScreen(screen){
       if(screen==='locations' && state.mission.active){
@@ -868,40 +1118,7 @@
       const grid=document.createElement('div');
       grid.className='item-grid';
       groupItems(state.lootQueue).forEach(({id,count,data})=>{
-        const row=document.createElement('div');
-        row.className='item-row';
-        const name=document.createElement('div');
-        name.className='item-name';
-        name.textContent=`${id} ×${count}`;
-        const meta=document.createElement('div');
-        meta.className='item-meta';
-        meta.textContent=`${data.type} · ${data.value || 1} cr`;
-        const chip=document.createElement('span');
-        chip.className=`chip ${data.rarity}`;
-        chip.textContent=data.rarity;
-        const actions=document.createElement('div');
-        actions.className='item-actions';
-        const pack=document.createElement('button');
-        pack.textContent='Pack';
-        pack.onclick=()=>moveLootItem(id,'inventory');
-        const stash=document.createElement('button');
-        stash.textContent='Stash';
-        stash.onclick=()=>moveLootItem(id,'stash');
-        const sell=document.createElement('button');
-        sell.textContent='Sell';
-        sell.onclick=()=>sellLootItem(id);
-        const scrap=document.createElement('button');
-        scrap.textContent='Scrap';
-        scrap.onclick=()=>scrapLootItem(id);
-        actions.appendChild(pack);
-        actions.appendChild(stash);
-        actions.appendChild(sell);
-        actions.appendChild(scrap);
-        row.appendChild(name);
-        row.appendChild(chip);
-        row.appendChild(meta);
-        row.appendChild(actions);
-        grid.appendChild(row);
+        grid.appendChild(buildItemRow({id,count,data,source:'haul'}));
       });
       dom.haul.appendChild(grid);
       const bulk=document.createElement('div');
@@ -915,6 +1132,7 @@
       const sellAll=document.createElement('button');
       sellAll.textContent='Sell all';
       sellAll.onclick=bulkSellLoot;
+      if(!state.atShop) sellAll.disabled=true;
       const scrapAll=document.createElement('button');
       scrapAll.textContent='Scrap all';
       scrapAll.onclick=bulkScrapLoot;
@@ -928,43 +1146,23 @@
     function renderStash(){
       dom.stash.innerHTML='';
       dom.stashActions.innerHTML='';
+      if(dom.shopStatus){
+        dom.shopStatus.textContent=`Docked: ${state.atShop ? 'Yes' : 'No'}`;
+      }
+      if(dom.toggleShop){
+        dom.toggleShop.textContent=state.atShop ? 'Undock from market' : 'Request docking clearance';
+      }
       const wrap=document.createElement('div');
       wrap.className='item-grid';
       const items=state.stash.items;
+      if(dom.stashCount){
+        dom.stashCount.textContent=`(${items.length}/${state.stashLimit})`;
+      }
       if(!items.length){
         wrap.innerHTML='<div class="muted-box">Stash is empty. Move loot here for long-term storage.</div>';
       }else{
         groupItems(items).forEach(({id,count,data})=>{
-          const row=document.createElement('div');
-          row.className='item-row';
-          const name=document.createElement('div');
-          name.className='item-name';
-          name.textContent=`${id} ×${count}`;
-          const meta=document.createElement('div');
-          meta.className='item-meta';
-          meta.textContent=`${data.type} · ${data.value || 1} cr`;
-          const chip=document.createElement('span');
-          chip.className=`chip ${data.rarity}`;
-          chip.textContent=data.rarity;
-          const actions=document.createElement('div');
-          actions.className='item-actions';
-          const pack=document.createElement('button');
-          pack.textContent='Pack';
-          pack.onclick=()=>unstashItem(id);
-          const sell=document.createElement('button');
-          sell.textContent='Sell';
-          sell.onclick=()=>sellStashItem(id);
-          const scrap=document.createElement('button');
-          scrap.textContent='Scrap';
-          scrap.onclick=()=>scrapStashItem(id);
-          actions.appendChild(pack);
-          actions.appendChild(sell);
-          actions.appendChild(scrap);
-          row.appendChild(name);
-          row.appendChild(chip);
-          row.appendChild(meta);
-          row.appendChild(actions);
-          wrap.appendChild(row);
+          wrap.appendChild(buildItemRow({id,count,data,source:'stash'}));
         });
       }
       dom.stash.appendChild(wrap);
@@ -973,6 +1171,7 @@
       const sellAll=document.createElement('button');
       sellAll.textContent='Sell all stash';
       sellAll.onclick=bulkSellStash;
+      if(!state.atShop) sellAll.disabled=true;
       const scrapAll=document.createElement('button');
       scrapAll.textContent='Scrap all stash';
       scrapAll.onclick=bulkScrapStash;
@@ -1155,6 +1354,7 @@
           return;
         }
         state.inventory.push(item);
+        state.selected={source:'inventory',item};
       }else if(target==='stash'){
         if(state.stash.items.length>=state.stashLimit){
           setCodex('Stash full. Sell or scrap to clear space.');
@@ -1162,6 +1362,7 @@
           return;
         }
         state.stash.items.push(item);
+        state.selected={source:'stash',item};
       }
       renderAll();
     }
@@ -1172,8 +1373,10 @@
       items.forEach(item=>{
         if(target==='inventory' && state.inventory.length<state.backpackLimit){
           state.inventory.push(item);
+          state.selected={source:'inventory',item};
         }else if(target==='stash' && state.stash.items.length<state.stashLimit){
           state.stash.items.push(item);
+          state.selected={source:'stash',item};
         }else{
           state.lootQueue.push(item);
         }
@@ -1185,9 +1388,14 @@
     }
 
     function sellLootItem(item){
+      if(!state.atShop){
+        setCodex('Dock at the market to sell items.');
+        return;
+      }
       const data=getItem(item);
       removeItem(state.lootQueue,item);
       state.credits+=data.value || 1;
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1196,15 +1404,21 @@
       removeItem(state.lootQueue,item);
       const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
       state.scrap+=salvage;
+      state.selected={source:null,item:null};
       renderAll();
     }
 
     function bulkSellLoot(){
+      if(!state.atShop){
+        setCodex('Dock at the market to sell items.');
+        return;
+      }
       state.lootQueue.forEach(item=>{
         const data=getItem(item);
         state.credits+=data.value || 1;
       });
       state.lootQueue=[];
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1215,13 +1429,19 @@
         state.scrap+=salvage;
       });
       state.lootQueue=[];
+      state.selected={source:null,item:null};
       renderAll();
     }
 
     function sellStashItem(item){
+      if(!state.atShop){
+        setCodex('Dock at the market to sell items.');
+        return;
+      }
       const data=getItem(item);
       removeItem(state.stash.items,item);
       state.credits+=data.value || 1;
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1230,15 +1450,21 @@
       removeItem(state.stash.items,item);
       const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
       state.scrap+=salvage;
+      state.selected={source:null,item:null};
       renderAll();
     }
 
     function bulkSellStash(){
+      if(!state.atShop){
+        setCodex('Dock at the market to sell items.');
+        return;
+      }
       state.stash.items.forEach(item=>{
         const data=getItem(item);
         state.credits+=data.value || 1;
       });
       state.stash.items=[];
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1249,6 +1475,7 @@
         state.scrap+=salvage;
       });
       state.stash.items=[];
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1413,6 +1640,9 @@
       renderRaidActions();
       renderHaul();
       renderStash();
+      renderItemDetails();
+      setInventoryScreen(state.inventoryScreen);
+      setStashScreen(state.stashScreen);
       renderScreens();
       syncTabs();
     }
