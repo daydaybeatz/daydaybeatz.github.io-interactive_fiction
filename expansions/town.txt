@@ -1,28 +1,28 @@
 @expansion
 id:town
 name:Rust Town
-summary:A market of welded sheet metal and neon tarps. Traders deal in favors, ammo, and whispered coordinates.
+summary:A market of welded sheet metal and neon tarps. Traders deal in favors, ammo, and coordinates whispered like prayers.
 
 @door
 label:Rust Town Gate
 hint:trade, rumors, quick morale fixes
-note:You sign the logbook. The gate guard barely looks up.
+note:You sign the logbook. The gate guard barely looks up, eyes hollow.
 target:market-square
 
 @scene market-square
 title:Market Square
-desc:Vendors call out over the crackle of patched generators. A crooked clock tower keeps the wrong time on purpose.
+desc:Vendors call out over the crackle of patched generators. A crooked clock tower keeps the wrong time on purpose, like a curse.
 tags:Safe / Trade
-option:Check the scrap kiosk => kiosk | risk:low | time:8 | success:credits+15,item:patch-kit,log:Scored decent salvage. | fail:morale-4,log:Merchants haggle you down.
-option:Visit the medic => medic | risk:low | time:6 | success:hp+8,credits-10,log:The medic patches you up. | fail:credits-5,log:Triages are pricey today.
+option:Check the scrap kiosk => kiosk | risk:low | time:8 | success:credits+15,item:patch-kit,log:You score salvage under a dead lamp. | fail:morale-4,log:Merchants haggle you down.
+option:Visit the medic => medic | risk:low | time:6 | success:hp+8,credits-10,log:The medic patches you up without a word. | fail:credits-5,log:Triages are pricey today.
 option:Listen for rumors => rumor-board | risk:medium | time:10 | success:note:Rumor: supply convoy stalled near old subway.,flag:convoy-hook,log:You overhear a smuggler whisper. | fail:morale-3,log:Nothing but recycled gossip.
 
 @scene kiosk
 title:Scrap Kiosk
-desc:Piles of stripped circuitry and empty ammo tins. A fan rattles overhead.
+desc:Piles of stripped circuitry and empty ammo tins. A fan rattles overhead like loose bones.
 tags:Trade
-option:Sell copper wiring => market-square | risk:low | time:5 | success:credits+20,log:Sold scrap for quick cash. | fail:credits+5,log:Only partial payout.
-option:Browse exo-suit junk => market-square | risk:medium | time:7 | success:item:exo brace,heat+1,log:Found a working brace. | fail:morale-2,log:Everything is rusted through.
+option:Sell copper wiring => market-square | risk:low | time:5 | success:credits+20,log:You sell scrap for quick cash. | fail:credits+5,log:Only partial payout.
+option:Browse exo-suit junk => market-square | risk:medium | time:7 | success:item:exo brace,heat+1,log:You find a working brace. | fail:morale-2,log:Everything is rusted through.
 
 @scene medic
 title:Patchwork Clinic
@@ -33,7 +33,7 @@ option:Buy painkillers => market-square | risk:medium | time:4 | success:item:pa
 
 @scene rumor-board
 title:Rumor Board
-desc:A wall of paper scraps, coordinates, and desperate promises. A faded poster says "NOTHING LEAVES WITHOUT YOU".
+desc:A wall of paper scraps, coordinates, and desperate promises. A faded poster says "NOTHING LEAVES WITHOUT YOU" like a threat.
 tags:Intel
 option:Study a convoy map => market-square | risk:low | time:6 | success:note:Marked a supply convoy route near the canyons.,log:You memorize the pattern. | fail:morale-2
 option:Trade gossip for cash => market-square | risk:medium | time:5 | success:credits+12,morale+2 | fail:credits+2,morale-2,log:Nobody trusts your intel today.
