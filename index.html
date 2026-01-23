@@ -77,6 +77,11 @@
     .stack{display:flex;flex-direction:column;gap:12px;}
     .excursion-status{font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
     .excursion-status b{color:#e8edf7;}
+    .progress{height:10px;border-radius:999px;background:#0f111a;border:1px solid #1c1f32;overflow:hidden;}
+    .progress span{display:block;height:100%;background:linear-gradient(90deg,#5bd1ff,#8fffa3);border-radius:999px;transition:width .2s ease;}
+    .op-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;gap:8px;}
+    .op-meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px;}
+    .op-actions{display:flex;gap:8px;flex-wrap:wrap;}
     @media(max-width:900px){header{position:static;} .two-col{grid-template-columns:1fr;} .tab-buttons button{flex:1 1 100%;}}
   </style>
 </head>
@@ -117,6 +122,10 @@
             <h3>Hub Doors</h3>
             <div id="doors"></div>
             <div class="small" id="doorsHint">Loading expansions…</div>
+          </section>
+          <section class="panel">
+            <h3>Idle Operations</h3>
+            <div id="idleOps"></div>
           </section>
           <div class="muted-box" id="hubLock"></div>
         </div>
@@ -170,19 +179,34 @@
       storage:{name:'Hub Storage',items:[]},
       lootContainer:{name:'Supply Cache',items:['flare','ration bar','old coin']},
       storageMode:false,
+      idleOps:{active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0},
       flags:new Set(),
       log:["Systems cold-started. Waiting for expansions…"],
       location:{expansion:null,scene:null},
-      excursion:{active:false,steps:0,limit:12,startAt:null,extracting:false,reason:null}
+      excursion:{active:false,steps:0,limit:12,startAt:null,extracting:false,reason:null,extractionDurationMs:EXTRACTION_DURATION_MS}
     };
 
     const lootPool=['flare','ration bar','old coin','bandage','microcell','water flask','scrap wiring','patch kit','lockbox key'];
-    const TASK_MINUTES=0; // time tracking no longer drives the loop
+    const TASK_MINUTES=0; // legacy placeholder
     const DAILY_TASK_LIMIT=12;
     const EXTRACTION_DURATION_MS=10000;
+    const ACTION_TIMES={pulse:6,camp:12,trade:8};
 
     const riskTable={low:0.07,medium:0.18,high:0.3,deadly:0.45};
     const expansions={};
+    const idleOperations=[
+      {id:'salvage',label:'Salvage run',desc:'Remote drone gathers loose scrap and coins.',duration:7,cost:{credits:8},reward:'scrap+3,credits+4,signal+4'},
+      {id:'survey',label:'Signal survey',desc:'Low-risk sweep for new signals and maps.',duration:5,cost:{credits:5},reward:'signal+8,credits+2'},
+      {id:'resupply',label:'Supply errand',desc:'Courier route that brings small medical supplies.',duration:9,cost:{credits:10,scrap:1},reward:'hp+6,morale+4,item:bandage'}
+    ];
+    const gearTuning={
+      'rusty flashlight':{riskMod:-0.02,signalBonus:1},
+      'flare':{extractionSpeed:0.08},
+      'patch kit':{riskMod:-0.03},
+      'microcell':{idleSpeed:0.12,staminaBonus:2},
+      'bandage':{healBonus:2},
+      'water flask':{thirstRelief:3}
+    };
 
     const dom={
       stats:document.getElementById('stats'),
@@ -198,6 +222,7 @@
       inventory:document.getElementById('inventory'),
       codex:document.getElementById('codex'),
       log:document.getElementById('log'),
+      idleOps:document.getElementById('idleOps'),
       hubLock:document.getElementById('hubLock'),
       tabs:document.querySelector('.tabs'),
       tabButtons:Array.from(document.querySelectorAll('.tab-buttons button')),
@@ -228,6 +253,27 @@
 
     const removeItem=(arr,item)=>{const idx=arr.indexOf(item); if(idx>=0) arr.splice(idx,1);};
     const rollLoot=(count=3)=>Array.from({length:count},()=>lootPool[Math.floor(Math.random()*lootPool.length)]);
+    const getGearMods=()=>{
+      return state.equipped.reduce((acc,item)=>{
+        const mod=gearTuning[item];
+        if(!mod) return acc;
+        Object.entries(mod).forEach(([key,val])=>{
+          acc[key]=(acc[key]||0)+val;
+        });
+        return acc;
+      },{});
+    };
+    const formatCost=(cost)=>{
+      return Object.entries(cost).map(([k,v])=>`${v} ${k}`).join(' · ');
+    };
+    const canAfford=(cost)=>{
+      return Object.entries(cost).every(([k,v])=>state[k]>=v);
+    };
+    const applyCost=(cost)=>{
+      Object.entries(cost).forEach(([k,v])=>{
+        state[k]=Math.max(0,state[k]-v);
+      });
+    };
     function equipItem(item){
       if(state.equipped.includes(item)) return;
       removeItem(state.inventory,item);
@@ -273,6 +319,42 @@
       setCodex('New lootable container located.');
       logMsg('A fresh lootable container is within reach.');
       renderInventory();
+    }
+
+    function startIdleOp(opId){
+      if(state.idleOps.active){
+        setCodex('An idle operation is already underway.');
+        return;
+      }
+      const op=idleOperations.find(entry=>entry.id===opId);
+      if(!op) return;
+      if(!canAfford(op.cost)){
+        setCodex('Insufficient resources for this operation.');
+        return;
+      }
+      applyCost(op.cost);
+      const gearMods=getGearMods();
+      const speedMod=gearMods.idleSpeed || 0;
+      const duration=Math.max(3,op.duration*(1-speedMod));
+      state.idleOps={
+        active:true,
+        id:opId,
+        startedAt:Date.now(),
+        durationMs:duration*60000,
+        etaMinutes:duration
+      };
+      logMsg(`Idle op launched: ${op.label}. ETA ${duration.toFixed(1)} mins.`);
+      renderAll();
+    }
+
+    function completeIdleOp(){
+      const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+      if(!op) return;
+      applyEffects(op.reward,'success');
+      state.idleOps={active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0};
+      logMsg(`Idle op complete: ${op.label}.`);
+      setCodex(`Idle op returned with results: ${op.reward}.`);
+      renderAll();
     }
 
     /* ================= RENDERING ================= */
@@ -360,6 +442,58 @@
       dom.log.textContent=state.log.join('\n');
     }
 
+    function renderIdleOps(){
+      dom.idleOps.innerHTML='';
+      const gearMods=getGearMods();
+      if(state.idleOps.active){
+        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+        const elapsed=Math.max(0,(Date.now()-state.idleOps.startedAt)/1000);
+        const total=state.idleOps.durationMs/1000;
+        const pctDone=clamp((elapsed/total)*100,0,100);
+        const card=document.createElement('div');
+        card.className='op-card';
+        const title=document.createElement('div');
+        title.innerHTML=`<b>${op.label}</b> · in progress`;
+        const progress=document.createElement('div');
+        progress.className='progress';
+        progress.innerHTML=`<span style="width:${pctDone}%;"></span>`;
+        const meta=document.createElement('div');
+        meta.className='op-meta';
+        const remaining=Math.max(0,Math.ceil((total-elapsed)/60));
+        meta.textContent=`ETA ${remaining} min · ${op.desc}`;
+        card.appendChild(title);
+        card.appendChild(progress);
+        card.appendChild(meta);
+        dom.idleOps.appendChild(card);
+        return;
+      }
+      idleOperations.forEach(op=>{
+        const card=document.createElement('div');
+        card.className='op-card';
+        const title=document.createElement('div');
+        title.innerHTML=`<b>${op.label}</b>`;
+        const meta=document.createElement('div');
+        meta.className='op-meta';
+        const duration=Math.max(3,op.duration*(1-(gearMods.idleSpeed||0)));
+        meta.textContent=`${op.desc} · ${duration.toFixed(1)} min`;
+        const cost=document.createElement('div');
+        cost.className='op-meta';
+        cost.textContent=`Cost: ${formatCost(op.cost)} · Reward: ${op.reward}`;
+        const actions=document.createElement('div');
+        actions.className='op-actions';
+        const btn=document.createElement('button');
+        btn.textContent='Dispatch';
+        btn.onclick=()=>startIdleOp(op.id);
+        if(!canAfford(op.cost)) btn.disabled=true;
+        actions.appendChild(btn);
+        card.appendChild(title);
+        card.appendChild(meta);
+        card.appendChild(cost);
+        card.appendChild(actions);
+        dom.idleOps.appendChild(card);
+      });
+    }
+
     function isOnExcursion(){
       return !!state.location.expansion && state.excursion.active;
     }
@@ -398,9 +532,13 @@
         return;
       }
       const remaining=Math.max(0,DAILY_TASK_LIMIT-state.dailyTasksUsed);
-      dom.excursionStatus.innerHTML=`<b>Excursion tempo:</b> ${state.dailyTasksUsed}/${DAILY_TASK_LIMIT} tasks used today${remaining?` · ${remaining} remaining`:' · daily allotment spent'}`;
+      const extraction=state.excursion.extracting
+        ? ` · Extraction ${Math.max(0,Math.ceil((state.excursion.extractionDurationMs/1000)-excursionSeconds()))}s`
+        : '';
+      dom.excursionStatus.innerHTML=`<b>Excursion tempo:</b> ${state.dailyTasksUsed}/${DAILY_TASK_LIMIT} tasks used today${remaining?` · ${remaining} remaining`:' · daily allotment spent'}${extraction}`;
+      const holdSeconds=Math.max(1,Math.round(state.excursion.extractionDurationMs/1000));
       dom.tempoHint.textContent=state.excursion.extracting
-        ? 'Extraction underway. Hold position for 10 seconds while the winch hauls you out.'
+        ? `Extraction underway. Hold position for ${holdSeconds} seconds while the winch hauls you out.`
         : remaining? 'Each action consumes a daily task. Call extraction to bank progress before you run out.'
         : 'Daily tasks are exhausted. Extraction will haul you back automatically.';
     }
@@ -413,11 +551,13 @@
 
     function appendExtractionControls(){
       if(!isOnExcursion()) return;
+      const gearMods=getGearMods();
+      const duration=Math.max(1,Math.round((EXTRACTION_DURATION_MS*(1-(gearMods.extractionSpeed||0)))/1000));
       const progress=document.createElement('div');
       progress.className='small';
       progress.textContent=`Tasks consumed: ${state.dailyTasksUsed}/${DAILY_TASK_LIMIT} · Extraction available`;
       const call=document.createElement('button');
-      call.innerHTML='<span>Call extraction</span><span class="small">10s hold</span>';
+      call.innerHTML=`<span>Call extraction</span><span class="small">${duration}s hold</span>`;
       call.onclick=()=>startExtraction(false,'manual');
       dom.actions.appendChild(progress);
       dom.actions.appendChild(call);
@@ -436,11 +576,15 @@
 
     function startExtraction(autoTriggered=false,reason='manual'){
       if(!isOnExcursion() || state.excursion.extracting) return;
+      const gearMods=getGearMods();
+      const duration=EXTRACTION_DURATION_MS*(1-(gearMods.extractionSpeed||0));
       state.excursion.extracting=true;
       state.excursion.reason=reason;
-      logMsg(autoTriggered?'Auto-extraction initiated — daily tasks exhausted.':'Extraction requested — hold tight for 10 seconds.');
+      state.excursion.extractionDurationMs=duration;
+      const seconds=Math.max(1,Math.round(duration/1000));
+      logMsg(autoTriggered?`Auto-extraction initiated — daily tasks exhausted (${seconds}s).`:`Extraction requested — hold tight for ${seconds} seconds.`);
       renderAll();
-      setTimeout(()=>completeExtraction(reason),EXTRACTION_DURATION_MS);
+      setTimeout(()=>completeExtraction(reason),duration);
     }
 
     function completeExtraction(reason){
@@ -476,6 +620,12 @@
         hold.textContent='Hold position…';
         hold.disabled=true;
         dom.actions.appendChild(hold);
+        const progress=document.createElement('div');
+        progress.className='progress';
+        const duration=Math.max(1,state.excursion.extractionDurationMs/1000);
+        const pctDone=clamp((excursionSeconds()/duration)*100,0,100);
+        progress.innerHTML=`<span style="width:${pctDone}%;"></span>`;
+        dom.actions.appendChild(progress);
         return;
       }
       if(!scene.options || !scene.options.length){
@@ -485,7 +635,8 @@
       }
       scene.options.forEach(opt=>{
         const btn=document.createElement('button');
-        btn.innerHTML=`<span>${opt.label}</span><span class="small">${opt.risk || 'steady'} · task</span>`;
+        const minutes=opt.time?`${opt.time} min`:'task';
+        btn.innerHTML=`<span>${opt.label}</span><span class="small">${opt.risk || 'steady'} · ${minutes}</span>`;
         btn.onclick=()=>runOption(exp,scene,opt);
         if(opt.risk==='deadly') btn.classList.add('danger');
         dom.actions.appendChild(btn);
@@ -496,7 +647,7 @@
 
     function enterScene(expansionId,sceneId){
       state.location={expansion:expansionId,scene:sceneId};
-      state.excursion={active:true,steps:state.dailyTasksUsed,limit:DAILY_TASK_LIMIT,startAt:Date.now(),extracting:false,reason:null};
+      state.excursion={active:true,steps:state.dailyTasksUsed,limit:DAILY_TASK_LIMIT,startAt:Date.now(),extracting:false,reason:null,extractionDurationMs:EXTRACTION_DURATION_MS};
       setActiveTab('field');
       renderScene();
     }
@@ -510,6 +661,16 @@
       const heatPressure=state.heat*0.012;
       const base=0.06;
       return clamp(base+hungerPressure+thirstPressure+fatiguePressure+radiationPressure+heatPressure,0,0.85);
+    }
+
+    function computeFailChance(risk){
+      const base=riskTable[risk] ?? 0.12;
+      const pressure=calcPressure();
+      const gearMods=getGearMods();
+      const heatPenalty=Math.min(0.12,state.heat*0.002);
+      const radsPenalty=Math.min(0.08,state.rads*0.004);
+      const total=base + pressure*0.25 + heatPenalty + radsPenalty - (gearMods.riskMod||0);
+      return clamp(total,0.05,0.75);
     }
 
     function tickTime(minutes){
@@ -572,12 +733,14 @@
 
     function runOption(exp,scene,opt){
       if(state.excursion.extracting) return;
-      tickTime(TASK_MINUTES);
+      const effortMinutes=opt.time || 8;
+      tickTime(effortMinutes);
+      const gearMods=getGearMods();
       state.hunger=clamp(state.hunger+2,0,state.maxHunger);
-      state.thirst=clamp(state.thirst+3,0,state.maxThirst);
-      state.stamina=clamp(state.stamina-5,0,state.maxStamina);
+      state.thirst=clamp(state.thirst+3-(gearMods.thirstRelief||0),0,state.maxThirst);
+      state.stamina=clamp(state.stamina-5+(gearMods.staminaBonus||0),0,state.maxStamina);
 
-      const failChance=riskTable[opt.risk] ?? 0.12;
+      const failChance=computeFailChance(opt.risk);
       const roll=Math.random();
       const success=roll>failChance;
       applyEffects(success?opt.success:opt.fail, success?'success':'fail');
@@ -587,8 +750,11 @@
       if(success){
         state.streak++;
         const momentumBonus=Math.min(4,Math.floor(state.streak/2));
-        const signalGain=3+momentumBonus;
+        const signalGain=3+momentumBonus+(gearMods.signalBonus||0);
         state.signal=clamp(state.signal+signalGain,0,state.maxSignal);
+        if(gearMods.healBonus){
+          state.hp=clamp(state.hp+gearMods.healBonus,0,state.maxHp);
+        }
         if(state.streak%3===0){
           state.scrap=clamp(state.scrap+1,0,999);
           logMsg(`Momentum ${state.streak}x — scavenged extra scrap.`);
@@ -612,7 +778,7 @@
 
     function resetToHub(){
       state.location={expansion:null,scene:null};
-      state.excursion={active:false,steps:state.dailyTasksUsed,limit:DAILY_TASK_LIMIT,startAt:null,extracting:false,reason:null};
+      state.excursion={active:false,steps:state.dailyTasksUsed,limit:DAILY_TASK_LIMIT,startAt:null,extracting:false,reason:null,extractionDurationMs:EXTRACTION_DURATION_MS};
       dom.sceneTitle.textContent='Hub: Signal Garage';
       dom.sceneDesc.textContent='An empty staging ground. Coil cables, radio static, and chalk markings on the floor wait for doors to be bolted on.';
       dom.sceneBadge.textContent='Idle';
@@ -622,13 +788,13 @@
 
     function appendCoreActions(){
       const idle=document.createElement('button');
-      idle.innerHTML='<span>Pulse idle scan</span><span class="small">steady task</span>';
+      idle.innerHTML=`<span>Pulse idle scan</span><span class="small">steady · ${ACTION_TIMES.pulse} min</span>`;
       idle.onclick=runPulseScan;
       const rest=document.createElement('button');
-      rest.innerHTML='<span>Make camp</span><span class="small">low task</span>';
+      rest.innerHTML=`<span>Make camp</span><span class="small">low · ${ACTION_TIMES.camp} min</span>`;
       rest.onclick=runCamp;
       const convert=document.createElement('button');
-      convert.innerHTML='<span>Cash in signal</span><span class="small">trade task</span>';
+      convert.innerHTML=`<span>Cash in signal</span><span class="small">trade · ${ACTION_TIMES.trade} min</span>`;
       convert.onclick=burnSignal;
       dom.actions.appendChild(idle);
       dom.actions.appendChild(rest);
@@ -636,8 +802,9 @@
     }
 
     function runPulseScan(){
-      tickTime(TASK_MINUTES);
-      const pulse=4+Math.floor(state.streak/2);
+      tickTime(ACTION_TIMES.pulse);
+      const gearMods=getGearMods();
+      const pulse=4+Math.floor(state.streak/2)+(gearMods.signalBonus||0);
       state.signal=clamp(state.signal+pulse,0,state.maxSignal);
       state.heat=clamp(state.heat+1,0,999);
       state.thirst=clamp(state.thirst+1,0,state.maxThirst);
@@ -647,12 +814,13 @@
     }
 
     function runCamp(){
-      tickTime(TASK_MINUTES);
+      tickTime(ACTION_TIMES.camp);
+      const gearMods=getGearMods();
       state.stamina=clamp(state.stamina+12,0,state.maxStamina);
       state.hp=clamp(state.hp+4,0,state.maxHp);
       state.morale=clamp(state.morale+2,0,state.maxMorale);
       state.hunger=clamp(state.hunger+3,0,state.maxHunger);
-      state.thirst=clamp(state.thirst+3,0,state.maxThirst);
+      state.thirst=clamp(state.thirst+3-(gearMods.thirstRelief||0),0,state.maxThirst);
       state.heat=Math.max(0,state.heat-3);
       state.streak=0;
       logMsg('You bunker down, patch gear, and reset momentum.');
@@ -666,7 +834,7 @@
         logMsg('Not enough signal to trade.');
         return;
       }
-      tickTime(TASK_MINUTES);
+      tickTime(ACTION_TIMES.trade);
       const payout=4+Math.floor(state.signal/12)+Math.floor(state.streak/3);
       state.signal=Math.max(0,state.signal-10);
       state.credits+=payout;
@@ -777,6 +945,7 @@
       renderLog();
       renderExcursionStatus();
       renderHubAccess();
+      renderIdleOps();
       syncTabs();
     }
 
@@ -786,6 +955,13 @@
 
     function ambientTick(){
       tickTime(4);
+      if(state.idleOps.active){
+        const elapsed=Date.now()-state.idleOps.startedAt;
+        if(elapsed>=state.idleOps.durationMs){
+          completeIdleOp();
+          return;
+        }
+      }
       const drip=1+Math.floor(state.streak/4);
       state.signal=clamp(state.signal+drip,0,state.maxSignal);
       state.hunger=clamp(state.hunger+1,0,state.maxHunger);
