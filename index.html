@@ -154,7 +154,6 @@
         <button data-tab="hub" class="active">Operations</button>
         <button data-tab="inventory">Backpack</button>
         <button data-tab="field">Stash</button>
-        <button data-tab="log">Ops Log</button>
       </div>
       <div id="tab-hub" class="tab-content active">
         <div class="stack">
@@ -230,6 +229,12 @@
                 <div class="small" id="missionLog"></div>
                 <div class="mission-actions" id="missionActions"></div>
               </div>
+              <div class="command-card" id="missionRewardsCard">
+                <div class="command-title">Mission rewards</div>
+                <div id="missionRewardDetail" class="command-hint">Complete a mission to review rewards.</div>
+                <div class="action-grid" id="missionRewardActions"></div>
+                <div id="missionRewardList" class="item-grid"></div>
+              </div>
             </section>
           </div>
         </div>
@@ -253,7 +258,7 @@
               </div>
             </div>
             <div class="command-card">
-              <div class="command-title">Loadout Command Card</div>
+              <div class="command-title">Selected item</div>
               <div id="itemDetail" class="command-hint">Select gear to view stats, uses, and actions.</div>
               <div class="action-grid" id="itemActions"></div>
             </div>
@@ -295,12 +300,6 @@
           <p class="small">Move loot from the haul into long-term storage, or liquidate overflow for credits.</p>
         </section>
       </div>
-      <div id="tab-log" class="tab-content">
-        <section class="panel">
-          <h3>Ops Log</h3>
-          <div id="log" class="log"></div>
-        </section>
-      </div>
     </div>
   </div>
 
@@ -329,13 +328,12 @@
       stash:{name:'Vault Stash',items:[]},
       lootQueue:[],
       autoSalvage:false,
-      idleOps:{active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0},
+      idleOps:{active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:'',rewards:[]},
       flags:new Set(),
-      log:["Systems cold-started. Zones awaiting tether…"],
       zone:{id:'drift-yard',name:'Drift Yard',risk:'low',desc:'Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.'},
       screen:'main',
       travel:{active:false,endsAt:null,target:null},
-      mission:{active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:''},
+      mission:{active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:''},
       inventoryScreen:'backpack',
       stashScreen:'vault',
       selected:{source:null,item:null},
@@ -412,7 +410,6 @@
       backpackCount:document.getElementById('backpackCount'),
       loadoutCount:document.getElementById('loadoutCount'),
       codex:document.getElementById('codex'),
-      log:document.getElementById('log'),
       idleOps:document.getElementById('idleOps'),
       hubLock:document.getElementById('hubLock'),
       screenNav:document.getElementById('screenNav'),
@@ -430,6 +427,10 @@
       missionProgress:document.getElementById('missionProgress'),
       missionLog:document.getElementById('missionLog'),
       missionActions:document.getElementById('missionActions'),
+      missionRewardsCard:document.getElementById('missionRewardsCard'),
+      missionRewardDetail:document.getElementById('missionRewardDetail'),
+      missionRewardActions:document.getElementById('missionRewardActions'),
+      missionRewardList:document.getElementById('missionRewardList'),
       stash:document.getElementById('stash'),
       stashActions:document.getElementById('stashActions'),
       stashDetail:document.getElementById('stashDetail'),
@@ -454,8 +455,7 @@
       tabContents:{
         hub:document.getElementById('tab-hub'),
         inventory:document.getElementById('tab-inventory'),
-        field:document.getElementById('tab-field'),
-        log:document.getElementById('tab-log')
+        field:document.getElementById('tab-field')
       }
     };
 
@@ -477,11 +477,22 @@
       const hour=((h+11)%12+1);return `${hour}:${m.toString().padStart(2,'0')} ${suffix}`;
     }
     const setCodex=(msg)=>{ state.codex=[msg]; };
+    const canAccessVault=()=>state.screen==='main' && !state.mission.active && !state.travel.active;
+    const vaultBlockedMessage='Return to the main hub vault to transfer stash items.';
     const logMsg=(msg)=>{
       const stamp=`[Day ${state.day} // ${fmtTime(state.timeMinutes)}] ${msg}`;
-      state.log.unshift(stamp);
-      state.log=state.log.slice(0,14);
-      renderLog();
+      if(state.mission.active && !state.mission.completed){
+        state.mission.statusMessage=stamp;
+        state.mission.summary=stamp;
+        renderMissionStatus();
+        return;
+      }
+      if(state.idleOps.active && !state.idleOps.completed){
+        state.idleOps.statusMessage=stamp;
+        renderIdleOps();
+        return;
+      }
+      setCodex(msg);
     }
 
     const removeItem=(arr,item)=>{const idx=arr.indexOf(item); if(idx>=0) arr.splice(idx,1);};
@@ -576,6 +587,10 @@
       };
     };
     const upgradeStash=()=>{
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       const cost=getStashUpgradeCost();
       if(!canAfford(cost)){
         setCodex('Not enough resources to expand the stash.');
@@ -640,6 +655,10 @@
       renderAll();
     }
     function stashItem(item){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       if(state.stash.items.length>=state.stashLimit){
         setCodex('Stash is full.');
         return;
@@ -652,6 +671,10 @@
       renderAll();
     }
     function unstashItem(item){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       if(state.inventory.length>=getBackpackLimit()){
         setCodex('Backpack full.');
         return;
@@ -685,10 +708,27 @@
       renderAll();
     }
 
+    function resetIdleOpsState(){
+      state.idleOps={active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:'',rewards:[]};
+    }
+    function closeIdleOp(){
+      resetIdleOpsState();
+      state.selected={source:null,item:null};
+      setCodex('Idle operation closed. Ready for another dispatch.');
+      renderAll();
+    }
+
     function startIdleOp(opId){
       if(state.idleOps.active){
         setCodex('An idle operation is already underway.');
         return;
+      }
+      if(state.idleOps.completed){
+        if((state.idleOps.rewards?.length||0)>0){
+          setCodex('Resolve idle rewards before dispatching a new operation.');
+          return;
+        }
+        resetIdleOpsState();
       }
       const op=idleOperations.find(entry=>entry.id===opId);
       if(!op) return;
@@ -705,7 +745,10 @@
         id:opId,
         startedAt:Date.now(),
         durationMs:duration*60000,
-        etaMinutes:duration
+        etaMinutes:duration,
+        completed:false,
+        statusMessage:`Idle op launched: ${op.label}.`,
+        rewards:[]
       };
       logMsg(`Idle op launched: ${op.label}. ETA ${duration.toFixed(1)} mins.`);
       renderAll();
@@ -714,10 +757,20 @@
     function completeIdleOp(){
       const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
       if(!op) return;
-      applyEffects(op.reward,'success');
-      state.idleOps={active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0};
-      logMsg(`Idle op complete: ${op.label}.`);
-      setCodex(`Idle op returned with results: ${op.reward}.`);
+      const rewards=[];
+      applyEffects(op.reward,'success',{deferItemsTo:rewards});
+      state.idleOps={
+        active:false,
+        id:op.id,
+        startedAt:null,
+        durationMs:0,
+        etaMinutes:0,
+        completed:true,
+        statusMessage:`Idle op complete: ${op.label}. Rewards ready.`,
+        rewards
+      };
+      state.selected={source:null,item:null};
+      setCodex('Idle operation complete. Review rewards.');
       renderAll();
     }
 
@@ -738,12 +791,108 @@
         const percent=clamp(pct(val,max),0,200);
         return `<div class="statline"><div>${label}</div><div class="bar ${cls}"><span style="width:${percent}%;"></span></div><div>${Math.round(val)}/${max}</div></div>`;
       }).join('');
-      dom.meta.innerHTML=`<span class="pill-inline"><b>Credits</b>${state.credits}</span>`+
+    dom.meta.innerHTML=`<span class="pill-inline"><b>Credits</b>${state.credits}</span>`+
         `<span class="pill-inline"><b>Scrap</b>${state.scrap}</span>`+
         `<span class="pill-inline"><b>Fuel</b>${state.fuel}</span>`+
         `<span class="pill-inline"><b>Keys</b>${state.keys}</span>`+
         `<span class="pill-inline"><b>Time</b>${fmtTime(state.timeMinutes)}</span>`+
         `<span class="pill-inline"><b>Day</b>${state.day}</span>`;
+    }
+
+    const rewardSources={
+      mission:{
+        key:'missionReward',
+        getItems:()=>state.mission.rewards || [],
+        clear:()=>{ state.mission.rewards=[]; }
+      },
+      idle:{
+        key:'idleReward',
+        getItems:()=>state.idleOps.rewards || [],
+        clear:()=>{ state.idleOps.rewards=[]; }
+      }
+    };
+    const getRewardConfig=(source)=>Object.values(rewardSources).find(cfg=>cfg.key===source) || null;
+    const rewardHasItem=(source,item)=>{
+      const cfg=getRewardConfig(source);
+      if(!cfg) return false;
+      return cfg.getItems().includes(item);
+    };
+    const removeRewardItem=(source,item)=>{
+      const cfg=getRewardConfig(source);
+      if(!cfg) return false;
+      const bucket=cfg.getItems();
+      const idx=bucket.indexOf(item);
+      if(idx<0) return false;
+      bucket.splice(idx,1);
+      return true;
+    };
+    const salvageValue=(item)=>{
+      const data=getItem(item);
+      return data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
+    };
+    function claimRewardToInventory(source,item){
+      if(state.inventory.length>=getBackpackLimit()){
+        setCodex('Backpack full. Make room first.');
+        return;
+      }
+      if(!removeRewardItem(source,item)) return;
+      state.inventory.push(item);
+      state.selected={source:'inventory',item};
+      setCodex(`${item} packed into your backpack.`);
+      renderAll();
+    }
+    function claimRewardToVault(source,item){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
+      if(state.stash.items.length>=state.stashLimit){
+        setCodex('Stash full. Sell or scrap to clear space.');
+        return;
+      }
+      if(!removeRewardItem(source,item)) return;
+      state.stash.items.push(item);
+      state.selected={source:'stash',item};
+      setCodex(`${item} routed into the vault.`);
+      renderAll();
+    }
+    function equipRewardItem(source,item){
+      if(state.equipped.length>=equipmentLimit){
+        setCodex('Loadout full. Unequip something first.');
+        return;
+      }
+      const data=getItem(item);
+      if(!['tool','armor'].includes(data.type)){
+        setCodex('Only tools or armor can be equipped.');
+        return;
+      }
+      if(!removeRewardItem(source,item)) return;
+      state.equipped.push(item);
+      state.selected={source:'equipped',item};
+      setCodex(`${item} equipped from rewards.`);
+      renderAll();
+    }
+    function scrapRewardItem(source,item){
+      if(!removeRewardItem(source,item)) return;
+      const salvage=salvageValue(item);
+      state.scrap+=salvage;
+      state.selected={source:null,item:null};
+      setCodex(`${item} scrapped for ${salvage} scrap.`);
+      renderAll();
+    }
+    function leaveRewardItem(source,item){
+      if(!removeRewardItem(source,item)) return;
+      state.selected={source:null,item:null};
+      setCodex(`${item} left behind.`);
+      renderAll();
+    }
+    function clearRewardSource(source){
+      const cfg=getRewardConfig(source);
+      if(!cfg) return;
+      cfg.clear();
+      state.selected={source:null,item:null};
+      setCodex(source==='missionReward' ? 'Mission rewards left behind.' : 'Idle rewards dismissed.');
+      renderAll();
     }
 
     function buildItemRow({id,count,data,source}){
@@ -776,6 +925,7 @@
         if(source==='equipped') return state.equipped.includes(item);
         if(source==='stash') return state.stash.items.includes(item);
         if(source==='haul') return state.lootQueue.includes(item);
+        if(source==='missionReward' || source==='idleReward') return rewardHasItem(source,item);
         return false;
       };
       if(source && item && !sourceHasItem()){
@@ -784,10 +934,16 @@
         item=null;
       }
       const data=item?getItem(item):null;
+      const vaultAccess=canAccessVault();
+      const missionRewardsReady=state.mission.active && state.mission.completed && (state.mission.rewards?.length||0)>0;
+      const missionRewardDefault=missionRewardsReady
+        ? 'Select a mission reward to pack, equip, scrap, or leave it.'
+        : 'Complete a mission to review rewards.';
       const targets=[
         {detail:dom.itemDetail,actions:dom.itemActions,default:'Select gear to view stats, uses, and actions.'},
         {detail:dom.stashDetail,actions:dom.stashItemActions,default:'Select stash items to transfer, scrap, or sell.'},
-        {detail:dom.haulDetail,actions:dom.haulActions,default:'Select loot to route it into your rig.'}
+        {detail:dom.haulDetail,actions:dom.haulActions,default:'Select loot to route it into your rig.'},
+        {detail:dom.missionRewardDetail,actions:dom.missionRewardActions,default:missionRewardDefault}
       ];
       targets.forEach(target=>{
         if(!target.detail || !target.actions) return;
@@ -826,20 +982,58 @@
         if(data.type==='consumable'){
           actionConfigs.push({label:'Use item',action:()=>consumeItem(item)});
         }
-        actionConfigs.push({label:'Route to vault',action:()=>stashItem(item),disabled:state.stash.items.length>=state.stashLimit});
+        actionConfigs.push({
+          label:'Route to vault',
+          action:()=>stashItem(item),
+          disabled:!vaultAccess || state.stash.items.length>=state.stashLimit,
+          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
+        });
         actionConfigs.push({label:'Break down for scrap',action:()=>dismantleItem(item)});
         actionConfigs.push({label:'Sell to market',action:()=>sellItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
       }else if(source==='equipped'){
         actionConfigs.push({label:'Return to backpack',action:()=>unequipItem(item),disabled:!canUnequipItem(item)});
       }else if(source==='stash'){
-        actionConfigs.push({label:'Withdraw to backpack',action:()=>unstashItem(item),disabled:state.inventory.length>=getBackpackLimit()});
-        actionConfigs.push({label:'Break down for scrap',action:()=>scrapStashItem(item)});
-        actionConfigs.push({label:'Sell to market',action:()=>sellStashItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
+        actionConfigs.push({
+          label:'Withdraw to backpack',
+          action:()=>unstashItem(item),
+          disabled:!vaultAccess || state.inventory.length>=getBackpackLimit(),
+          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
+        });
+        actionConfigs.push({
+          label:'Break down for scrap',
+          action:()=>scrapStashItem(item),
+          disabled:!vaultAccess,
+          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
+        });
+        actionConfigs.push({
+          label:'Sell to market',
+          action:()=>sellStashItem(item),
+          disabled:!vaultAccess || !state.atShop,
+          blockedHint:!vaultAccess ? vaultBlockedMessage : 'Dock at market to sell.'
+        });
       }else if(source==='haul'){
         actionConfigs.push({label:'Pack into backpack',action:()=>moveLootItem(item,'inventory'),disabled:state.inventory.length>=getBackpackLimit()});
-        actionConfigs.push({label:'Store in vault',action:()=>moveLootItem(item,'stash'),disabled:state.stash.items.length>=state.stashLimit});
+        actionConfigs.push({
+          label:'Store in vault',
+          action:()=>moveLootItem(item,'stash'),
+          disabled:!vaultAccess || state.stash.items.length>=state.stashLimit,
+          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
+        });
         actionConfigs.push({label:'Break down for scrap',action:()=>scrapLootItem(item)});
         actionConfigs.push({label:'Sell to market',action:()=>sellLootItem(item),disabled:!state.atShop,blockedHint:'Dock at market to sell.'});
+      }else if(source==='missionReward' && missionRewardsReady){
+        actionConfigs.push({label:'Pack into backpack',action:()=>claimRewardToInventory(source,item),disabled:state.inventory.length>=getBackpackLimit()});
+        if(['tool','armor'].includes(data.type)){
+          actionConfigs.push({label:'Equip now',action:()=>equipRewardItem(source,item),disabled:state.equipped.length>=equipmentLimit});
+        }
+        actionConfigs.push({
+          label:'Store in vault',
+          action:()=>claimRewardToVault(source,item),
+          disabled:!vaultAccess || state.stash.items.length>=state.stashLimit,
+          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
+        });
+        actionConfigs.push({label:`Scrap for ${salvageValue(item)}`,action:()=>scrapRewardItem(source,item)});
+        actionConfigs.push({label:'Leave item',action:()=>leaveRewardItem(source,item)});
       }
       targets.forEach(target=>{
         if(!target.actions) return;
@@ -896,13 +1090,10 @@
       dom.codex.textContent = state.codex[state.codex.length-1] || '';
     }
 
-    function renderLog(){
-      dom.log.textContent=state.log.join('\n');
-    }
-
     function renderIdleOps(){
       dom.idleOps.innerHTML='';
       const gearMods=getGearMods();
+      const vaultAccess=canAccessVault();
       if(state.idleOps.active){
         const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
         const elapsed=Math.max(0,(Date.now()-state.idleOps.startedAt)/1000);
@@ -919,12 +1110,89 @@
         meta.className='op-meta';
         const remaining=Math.max(0,Math.ceil((total-elapsed)/60));
         meta.textContent=`ETA ${remaining} min · ${op.desc}`;
+        const signal=document.createElement('div');
+        signal.className='op-meta';
+        signal.textContent=state.idleOps.statusMessage || 'Operation underway.';
         card.appendChild(title);
         card.appendChild(progress);
         card.appendChild(meta);
+        card.appendChild(signal);
         dom.idleOps.appendChild(card);
         return;
       }
+      if(state.idleOps.completed){
+        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+        const card=document.createElement('div');
+        card.className='op-card';
+        const title=document.createElement('div');
+        title.innerHTML=`<b>${op?.label || 'Idle operation'}</b> · complete`;
+        const meta=document.createElement('div');
+        meta.className='op-meta';
+        meta.textContent=state.idleOps.statusMessage || 'Rewards ready to review.';
+        card.appendChild(title);
+        card.appendChild(meta);
+        const rewardsWrap=document.createElement('div');
+        rewardsWrap.className='item-grid';
+        const rewards=state.idleOps.rewards || [];
+        if(rewards.length){
+          rewards.forEach(item=>{
+            const data=getItem(item);
+            const row=buildItemRow({id:item,count:1,data,source:'idleReward'});
+            rewardsWrap.appendChild(row);
+            const actions=document.createElement('div');
+            actions.className='inline-actions';
+            const packBtn=document.createElement('button');
+            packBtn.textContent='Pack';
+            packBtn.disabled=state.inventory.length>=getBackpackLimit();
+            packBtn.onclick=()=>claimRewardToInventory('idleReward',item);
+            actions.appendChild(packBtn);
+            if(['tool','armor'].includes(data.type)){
+              const equipBtn=document.createElement('button');
+              equipBtn.textContent='Equip';
+              equipBtn.disabled=state.equipped.length>=equipmentLimit;
+              equipBtn.onclick=()=>equipRewardItem('idleReward',item);
+              actions.appendChild(equipBtn);
+            }
+            const vaultBtn=document.createElement('button');
+            vaultBtn.textContent='Vault';
+            vaultBtn.disabled=!vaultAccess || state.stash.items.length>=state.stashLimit;
+            vaultBtn.title=vaultAccess ? '' : vaultBlockedMessage;
+            vaultBtn.onclick=()=>claimRewardToVault('idleReward',item);
+            actions.appendChild(vaultBtn);
+            const scrapBtn=document.createElement('button');
+            scrapBtn.textContent=`Scrap ${salvageValue(item)}`;
+            scrapBtn.onclick=()=>scrapRewardItem('idleReward',item);
+            actions.appendChild(scrapBtn);
+            const leaveBtn=document.createElement('button');
+            leaveBtn.textContent='Leave';
+            leaveBtn.onclick=()=>leaveRewardItem('idleReward',item);
+            actions.appendChild(leaveBtn);
+            rewardsWrap.appendChild(actions);
+          });
+        }else{
+          const empty=document.createElement('div');
+          empty.className='muted-box';
+          empty.textContent='Rewards resolved. Close the operation to dispatch again.';
+          rewardsWrap.appendChild(empty);
+        }
+        card.appendChild(rewardsWrap);
+        const footer=document.createElement('div');
+        footer.className='op-actions';
+        if(rewards.length){
+          const leaveAll=document.createElement('button');
+          leaveAll.textContent='Leave all rewards';
+          leaveAll.onclick=()=>clearRewardSource('idleReward');
+          footer.appendChild(leaveAll);
+        }
+        const closeBtn=document.createElement('button');
+        closeBtn.textContent='Close operation';
+        closeBtn.disabled=rewards.length>0;
+        closeBtn.onclick=closeIdleOp;
+        footer.appendChild(closeBtn);
+        card.appendChild(footer);
+        dom.idleOps.appendChild(card);
+      }
+      const blockedDispatch=state.idleOps.active || state.idleOps.completed;
       idleOperations.forEach(op=>{
         const card=document.createElement('div');
         card.className='op-card';
@@ -942,7 +1210,10 @@
         const btn=document.createElement('button');
         btn.textContent='Dispatch';
         btn.onclick=()=>startIdleOp(op.id);
-        if(!canAfford(op.cost)) btn.disabled=true;
+        if(blockedDispatch || !canAfford(op.cost)) btn.disabled=true;
+        if(state.idleOps.completed && (state.idleOps.rewards?.length||0)>0){
+          btn.title='Resolve idle rewards before dispatching again.';
+        }
         actions.appendChild(btn);
         card.appendChild(title);
         card.appendChild(meta);
@@ -1006,6 +1277,11 @@
 
     if(dom.toggleShop){
       dom.toggleShop.onclick=()=>{
+        if(!canAccessVault()){
+          setCodex(vaultBlockedMessage);
+          renderStash();
+          return;
+        }
         state.atShop=!state.atShop;
         logMsg(state.atShop ? 'Docked at the market. Vendors ready.' : 'Undocked from the market. Vendors offline.');
         renderAll();
@@ -1018,6 +1294,8 @@
       renderInventory();
       renderStash();
       renderHaul();
+      renderMissionStatus();
+      renderIdleOps();
     }
 
     function setScreen(screen){
@@ -1168,29 +1446,57 @@
         dom.missionProgress.querySelector('span').style.width='0%';
         dom.missionLog.textContent='';
         dom.missionActions.innerHTML='';
+        if(dom.missionRewardsCard) dom.missionRewardsCard.style.display='none';
+        if(dom.missionRewardList) dom.missionRewardList.innerHTML='';
+        if(dom.missionRewardActions) dom.missionRewardActions.innerHTML='';
+        if(dom.missionRewardDetail) dom.missionRewardDetail.textContent='Complete a mission to review rewards.';
         return;
       }
       const raid=state.mission.raid;
       const remainingMs=Math.max(0,state.mission.endsAt-Date.now());
       const totalMs=Math.max(1,state.mission.endsAt-state.mission.startedAt);
       const percent=clamp(((totalMs-remainingMs)/totalMs)*100,0,100);
-      dom.missionProgress.querySelector('span').style.width=`${percent}%`;
+      dom.missionProgress.querySelector('span').style.width=`${state.mission.completed ? 100 : percent}%`;
       const remainingSec=Math.ceil(remainingMs/1000);
       dom.missionTitle.textContent=state.mission.completed
         ? `Mission complete: ${raid.label}`
         : `In raid: ${raid.label}`;
-      dom.missionMeta.textContent=`${raid.risk} risk · ${raid.time} min op · ${state.mission.location?.name || state.zone.name} · ${state.mission.completed ? 'Extraction window open' : `ETA ${remainingSec}s`}`;
-      dom.missionLog.textContent=state.mission.summary || 'Stay sharp. Watch the feed for extraction clearance.';
+      dom.missionMeta.textContent=`${raid.risk} risk · ${raid.time} min op · ${state.mission.location?.name || state.zone.name} · ${state.mission.completed ? 'Rewards ready' : `ETA ${remainingSec}s`}`;
+      const liveMessage=state.mission.statusMessage || state.mission.summary;
+      dom.missionLog.textContent=liveMessage || 'Stay sharp. Watch the feed for extraction clearance.';
       dom.missionActions.innerHTML='';
-      const exitBtn=document.createElement('button');
-      exitBtn.textContent='Return to locations hub';
-      exitBtn.onclick=()=>{
-        state.mission={active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:''};
-        setScreen('locations');
-        renderAll();
-      };
-      exitBtn.disabled=!state.mission.completed;
-      dom.missionActions.appendChild(exitBtn);
+      const rewards=state.mission.rewards || [];
+      const rewardsReady=state.mission.completed && rewards.length>0;
+      if(dom.missionRewardsCard){
+        dom.missionRewardsCard.style.display=state.mission.completed ? 'flex' : 'none';
+      }
+      if(dom.missionRewardList){
+        dom.missionRewardList.innerHTML='';
+        if(rewardsReady){
+          rewards.forEach(item=>{
+            const data=getItem(item);
+            dom.missionRewardList.appendChild(buildItemRow({id:item,count:1,data,source:'missionReward'}));
+          });
+        }else if(state.mission.completed){
+          const empty=document.createElement('div');
+          empty.className='muted-box';
+          empty.textContent=state.mission.success ? 'No rewards remaining. Close the mission to return to the deck.' : 'Mission failed. Close the mission to regroup.';
+          dom.missionRewardList.appendChild(empty);
+        }
+      }
+      if(state.mission.completed){
+        if(rewardsReady){
+          const leaveAll=document.createElement('button');
+          leaveAll.textContent='Leave all rewards';
+          leaveAll.onclick=()=>clearRewardSource('missionReward');
+          dom.missionActions.appendChild(leaveAll);
+        }
+        const closeBtn=document.createElement('button');
+        closeBtn.textContent='Close mission';
+        closeBtn.disabled=rewards.length>0;
+        closeBtn.onclick=closeMission;
+        dom.missionActions.appendChild(closeBtn);
+      }
     }
 
     function renderHaul(){
@@ -1213,6 +1519,10 @@
       const stashAll=document.createElement('button');
       stashAll.textContent='Stash all';
       stashAll.onclick=()=>bulkMoveLoot('stash');
+      if(!canAccessVault()){
+        stashAll.disabled=true;
+        stashAll.title=vaultBlockedMessage;
+      }
       const sellAll=document.createElement('button');
       sellAll.textContent='Sell all';
       sellAll.onclick=bulkSellLoot;
@@ -1230,11 +1540,17 @@
     function renderStash(){
       dom.stash.innerHTML='';
       dom.stashActions.innerHTML='';
+      const vaultAccess=canAccessVault();
+      if(!vaultAccess && state.atShop){
+        state.atShop=false;
+      }
       if(dom.shopStatus){
         dom.shopStatus.textContent=`Docked: ${state.atShop ? 'Yes' : 'No'}`;
       }
       if(dom.toggleShop){
         dom.toggleShop.textContent=state.atShop ? 'Undock from market' : 'Request docking clearance';
+        dom.toggleShop.disabled=!vaultAccess;
+        dom.toggleShop.title=vaultAccess ? '' : vaultBlockedMessage;
       }
       const wrap=document.createElement('div');
       wrap.className='item-grid';
@@ -1250,6 +1566,12 @@
         });
       }
       dom.stash.appendChild(wrap);
+      if(!vaultAccess){
+        const blocked=document.createElement('div');
+        blocked.className='muted-box';
+        blocked.textContent=vaultBlockedMessage;
+        dom.stashActions.appendChild(blocked);
+      }
       const upgradeCost=getStashUpgradeCost();
       const upgradeCard=document.createElement('div');
       upgradeCard.className='op-card';
@@ -1266,7 +1588,10 @@
       const upgradeBtn=document.createElement('button');
       upgradeBtn.textContent=`Upgrade stash (+${STASH_UPGRADE_STEP})`;
       upgradeBtn.onclick=upgradeStash;
-      if(!canAfford(upgradeCost)){
+      if(!vaultAccess){
+        upgradeBtn.disabled=true;
+        upgradeBtn.title=vaultBlockedMessage;
+      }else if(!canAfford(upgradeCost)){
         upgradeBtn.disabled=true;
         upgradeBtn.title='Need more credits or scrap.';
       }
@@ -1281,10 +1606,17 @@
       const sellAll=document.createElement('button');
       sellAll.textContent='Sell all stash';
       sellAll.onclick=bulkSellStash;
-      if(!state.atShop) sellAll.disabled=true;
+      if(!vaultAccess){
+        sellAll.disabled=true;
+        sellAll.title=vaultBlockedMessage;
+      }else if(!state.atShop) sellAll.disabled=true;
       const scrapAll=document.createElement('button');
       scrapAll.textContent='Scrap all stash';
       scrapAll.onclick=bulkScrapStash;
+      if(!vaultAccess){
+        scrapAll.disabled=true;
+        scrapAll.title=vaultBlockedMessage;
+      }
       bulk.appendChild(sellAll);
       bulk.appendChild(scrapAll);
       dom.stashActions.appendChild(bulk);
@@ -1334,13 +1666,16 @@
       logMsg(`Complication (${source}): ${hit.desc}`);
     }
 
-    function applyEffects(effectStr,outcome){
+    function applyEffects(effectStr,outcome,options={}){
       if(!effectStr) return;
+      const deferItemsTo=Array.isArray(options.deferItemsTo) ? options.deferItemsTo : null;
       effectStr.split(',').forEach(token=>{
         token=token.trim(); if(!token) return;
         if(token.startsWith('item:')){
           const item=token.slice(5).trim();
-          if(state.inventory.length<getBackpackLimit()) state.inventory.push(item);
+          if(deferItemsTo){
+            deferItemsTo.push(item);
+          }else if(state.inventory.length<getBackpackLimit()) state.inventory.push(item);
           else state.lootQueue.push(item);
           return;
         }
@@ -1371,12 +1706,14 @@
         state.energy=clamp(state.energy-20,0,state.maxEnergy);
       }
     }
-    function runRaidInstant(raid,location){
+    function runRaidInstant(raid,location,options={}){
       tickTime(raid.time);
       const gearMods=getGearMods();
       state.hunger=clamp(state.hunger+2,0,state.maxHunger);
       state.thirst=clamp(state.thirst+2,0,state.maxThirst);
       state.stamina=clamp(state.stamina-6+(gearMods.staminaBonus||0),0,state.maxStamina);
+      const deferItemsTo=Array.isArray(options.deferItemsTo) ? options.deferItemsTo : null;
+      const rewards=[];
 
       const locationRisk=location?.risk || state.zone.risk;
       const effectiveRisk=(riskRank[raid.risk] >= riskRank[locationRisk]) ? raid.risk : locationRisk;
@@ -1388,15 +1725,17 @@
         const lootBonus=gearMods.lootBonus || 0;
         const pulls=Math.max(1,raid.loot+(Math.random()<0.35?1:0));
         for(let i=0;i<pulls;i++){
-          state.lootQueue.push(rollLootItem(effectiveRisk,lootBonus));
+          rewards.push(rollLootItem(effectiveRisk,lootBonus));
         }
+        if(deferItemsTo) deferItemsTo.push(...rewards);
+        else state.lootQueue.push(...rewards);
         logMsg(`✓ ${raid.label} succeeded. Haul inbound.`);
       }else{
         applyEffects('hp-6,morale-4,temp-2','fail');
         rollComplication('raid');
         logMsg(`✖ ${raid.label} failed. You limp back empty-handed.`);
       }
-      return success;
+      return {success,rewards};
     }
 
     function runQuest(quest){
@@ -1424,6 +1763,17 @@
       renderAll();
     }
 
+    function resetMissionState(){
+      state.mission={active:false,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null};
+    }
+    function closeMission(){
+      resetMissionState();
+      state.selected={source:null,item:null};
+      state.screen='main';
+      setCodex('Mission closed. Back on the command deck.');
+      renderAll();
+    }
+
     function startMission(raid){
       const cost={energy:raid.energy,keys:raid.key||0};
       if(state.mission.active){
@@ -1448,6 +1798,8 @@
         completed:false,
         success:null,
         summary:'',
+        rewards:[],
+        statusMessage:`Mission launched: ${raid.label}.`,
         location:{...state.zone}
       };
       setCodex(`Mission launched: ${raid.label}.`);
@@ -1460,13 +1812,20 @@
     function completeMission(){
       if(!state.mission.active || state.mission.completed) return;
       const raid=state.mission.raid;
-      const success=runRaidInstant(raid,state.mission.location);
+      const rewards=[];
+      const result=runRaidInstant(raid,state.mission.location,{deferItemsTo:rewards});
+      const success=result.success;
       state.mission.completed=true;
       state.mission.success=success;
+      state.mission.rewards=rewards;
       state.mission.summary=success
-        ? 'Extraction secured. Haul loaded and sealed.'
+        ? 'Extraction secured. Review rewards before closing the mission.'
         : 'Extraction rough. Patch up before you re-deploy.';
-      setCodex('Extraction window open. Return to locations hub.');
+      state.mission.statusMessage=success
+        ? `Mission complete: ${raid.label}. Rewards ready.`
+        : `Mission failed: ${raid.label}.`;
+      setCodex(success ? 'Mission complete. Rewards ready to review.' : 'Mission failed. Recover and try again.');
+      state.selected={source:null,item:null};
       renderAll();
     }
 
@@ -1481,6 +1840,11 @@
         state.inventory.push(item);
         state.selected={source:'inventory',item};
       }else if(target==='stash'){
+        if(!canAccessVault()){
+          setCodex(vaultBlockedMessage);
+          state.lootQueue.push(item);
+          return;
+        }
         if(state.stash.items.length>=state.stashLimit){
           setCodex('Stash full. Sell or scrap to clear space.');
           state.lootQueue.push(item);
@@ -1500,13 +1864,19 @@
           state.inventory.push(item);
           state.selected={source:'inventory',item};
         }else if(target==='stash' && state.stash.items.length<state.stashLimit){
+          if(!canAccessVault()){
+            state.lootQueue.push(item);
+            return;
+          }
           state.stash.items.push(item);
           state.selected={source:'stash',item};
         }else{
           state.lootQueue.push(item);
         }
       });
-      if(state.lootQueue.length){
+      if(target==='stash' && !canAccessVault()){
+        setCodex(vaultBlockedMessage);
+      }else if(state.lootQueue.length){
         setCodex('Some loot could not be moved due to capacity.');
       }
       renderAll();
@@ -1559,6 +1929,10 @@
     }
 
     function sellStashItem(item){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       if(!state.atShop){
         setCodex('Dock at the market to sell items.');
         return;
@@ -1571,6 +1945,10 @@
     }
 
     function scrapStashItem(item){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       const data=getItem(item);
       removeItem(state.stash.items,item);
       const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
@@ -1580,6 +1958,10 @@
     }
 
     function bulkSellStash(){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       if(!state.atShop){
         setCodex('Dock at the market to sell items.');
         return;
@@ -1594,6 +1976,10 @@
     }
 
     function bulkScrapStash(){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
       state.stash.items.forEach(item=>{
         const data=getItem(item);
         const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
@@ -1765,7 +2151,6 @@
     function renderAll(){
       renderBars();
       renderInventory();
-      renderLog();
       renderExcursionStatus();
       renderHubAccess();
       renderTravelStatus();
