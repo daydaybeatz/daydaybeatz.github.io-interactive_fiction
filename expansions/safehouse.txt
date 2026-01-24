@@ -1,12 +1,11 @@
 @expansion
 id:safehouse
 name:Abandoned Safehouse
-summary:A silent bunker with sagging hammocks, rain barrels, and a flickering lantern. Good for stabilizing vitals before the dark closes in again.
+summary:A silent bunker with sagging hammocks, rain barrels, and a flickering lantern. A place to stabilize vitals and manage upgrades before heading back out.
 
 @door
 label:Safehouse Hatch
-hint:rest, stash gear, morale reset
-note:You scratched tally marks into the metal bulkhead. Some are crossed out.
+hint:rest, regroup, upgrade
 target:bunks
 
 @scene bunks
@@ -14,14 +13,14 @@ title:Lower Bunks
 desc:Metal bunks line the wall, mattresses thin but dry. A patched-up radio hums against the storm outside like a warning.
 tags:Safe / Rest
 option:Crash for a bit => bunks | risk:low | time:30 | success:hp+10,stamina+15,morale+6,hunger-8,thirst-10,log:You sleep in short bursts.,note:Rested at the hatch. | fail:hp+4,stamina+6
-option:Check supply crates => crates | risk:medium | time:12 | success:item:field rations,item:water canister,log:You inventory the crates in the dark.,flag:safehouse-cache | fail:credits-5,log:Rats ate through some supplies.
+option:Run maintenance checks => crates | risk:low | time:12 | success:stamina+8,temp+1,log:You tighten straps and patch seals. | fail:stamina+4,log:You only manage a quick tune-up.
 
 @scene crates
-title:Supply Crates
-desc:Plastic crates are labeled with dates long past. Some are sealed with old mercenary logos that look more like curses now.
-tags:Storage
-option:Patch your armor => bunks | risk:low | time:10 | success:stamina+10,morale+2,log:Armor straps tightened. | fail:stamina+4
-option:Wire a motion sensor => bunks | risk:medium | time:15 | success:temp+1,flag:warded,log:You rig a sensor facing the hallway. | fail:stamina-6,morale-2,log:The soldering iron dies mid-job.
+title:Maintenance Crates
+desc:Plastic crates are labeled with dates long past. Tools are scattered in neat rows, waiting for someone careful enough to use them.
+tags:Storage / Upgrades
+option:Reinforce your kit => bunks | risk:low | time:10 | success:stamina+10,morale+2,log:Your kit feels more reliable already. | fail:stamina+5,log:You rush the job but it still helps.
+option:Plan the next route => hallway | risk:low | time:8 | success:morale+4,log:You map out a safer approach. | fail:morale+1,log:You second-guess every choice.
 
 @scene hallway
 title:Maintenance Hall
@@ -29,14 +28,3 @@ desc:A dripping hallway leads deeper into the safehouse. Faded graffiti reads "M
 tags:Transit
 option:Return to bunks => bunks | risk:low | time:4 | success:morale+1 | fail:morale-1
 option:Stretch legs => bunks | risk:low | time:6 | success:stamina+8,log:You loosen up with hallway laps. | fail:stamina+2
-
-@quest
-id:safehouse-vault
-title:Crack the Hidden Armory
-desc:Find the armory lockbox and pry out the warden's protective gear before scavengers return.
-risk:high
-time:13
-success:item:safehouse warden coat,credits+18,stamina+4
-fail:hp-9,morale-4
-flag:safehouse-vault
-once:true
