@@ -200,7 +200,6 @@
           <div class="screen-nav" id="screenNav">
             <button data-screen="main" class="active">Main Hub</button>
             <button data-screen="locations">Locations Hub</button>
-            <button data-screen="mission">In Mission</button>
           </div>
           <div id="screen-main" class="screen active">
             <section class="panel">
@@ -404,7 +403,7 @@
     };
     const savedState=loadSavedState();
     let state=savedState || createDefaultState();
-    let allowAutosave=Boolean(savedState);
+    let allowAutosave=true;
     const SAVE_DEBOUNCE_MS=1500;
     const SAVE_MIN_INTERVAL_MS=8000;
     const queueSave=({force=false}={})=>{
@@ -2119,7 +2118,7 @@
         type:'scene',
         raid:raidLike,
         startedAt:now,
-        endsAt:now+(time*1000),
+        endsAt:now+(time*60000),
         completed:false,
         success:null,
         summary:'',
@@ -2873,7 +2872,7 @@
         type:'contract',
         raid:raidLike,
         startedAt:now,
-        endsAt:now+(raidLike.time*1000),
+        endsAt:now+(raidLike.time*60000),
         completed:false,
         success:null,
         summary:'',
@@ -2932,7 +2931,7 @@
         type:'raid',
         raid,
         startedAt:now,
-        endsAt:now+(raid.time*1000),
+        endsAt:now+(raid.time*60000),
         completed:false,
         success:null,
         summary:'',
@@ -3329,15 +3328,27 @@
         dom.introActions.appendChild(restartBtn);
       }else{
         dom.introTitle.textContent='Fight, loot, survive.';
-        dom.introMessage.textContent='The drift is cold. Keep moving and build your loadout before the loop bites back.';
+        dom.introMessage.textContent='Start a fresh loop or purge storage to reset everything.';
         const startBtn=document.createElement('button');
-        startBtn.textContent='Begin';
+        startBtn.textContent='Start fresh';
         startBtn.onclick=()=>{
           allowAutosave=true;
           queueSave({force:true});
           hideIntroModal();
         };
+        const resetBtn=document.createElement('button');
+        resetBtn.textContent='Clear saves';
+        resetBtn.classList.add('danger');
+        resetBtn.onclick=()=>{
+          localStorage.removeItem(SAVE_KEY);
+          state=createDefaultState();
+          allowAutosave=true;
+          renderAll();
+          queueSave({force:true});
+          hideIntroModal();
+        };
         dom.introActions.appendChild(startBtn);
+        dom.introActions.appendChild(resetBtn);
       }
       dom.introModal.classList.remove('hidden');
     }
