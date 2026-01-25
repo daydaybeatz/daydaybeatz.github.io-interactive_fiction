@@ -94,6 +94,16 @@
     .mission-actions{display:flex;gap:8px;flex-wrap:wrap;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .item-grid{display:flex;flex-direction:column;gap:10px;}
+    .icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
+    .icon-tile{align-items:flex-start;justify-content:space-between;flex-direction:column;gap:6px;aspect-ratio:1;padding:8px 10px;min-height:0;background:rgba(255,255,255,0.03);text-align:left;}
+    .icon-tile .icon-name{font-weight:600;font-size:12px;line-height:1.25;}
+    .icon-tile .icon-meta{font-size:10px;color:var(--muted);}
+    .icon-tile .icon-count{font-size:11px;color:var(--muted);}
+    .icon-tile.selected{border-color:var(--accent);box-shadow:0 0 0 1px rgba(91,209,255,0.3);}
+    .icon-tile.empty{opacity:0.45;cursor:default;}
+    .icon-tile.empty:hover{border-color:var(--border);transform:none;}
+    .icon-pager{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap;}
+    .icon-pager .page-info{font-size:12px;color:var(--muted);}
     .item-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);}
     .item-row.selectable{cursor:pointer;transition:border .15s ease,transform .05s ease;}
     .item-row.selectable:hover{border-color:var(--accent);transform:translateY(-1px);}
@@ -140,11 +150,22 @@
     .market-card{border:1px solid var(--border);border-radius:12px;padding:10px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;gap:6px;}
     .market-card .title-row{display:flex;justify-content:space-between;align-items:center;gap:6px;}
     .market-card .cost{font-size:12px;color:var(--accent-2);}
+    .modal{position:fixed;inset:0;background:rgba(6,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:20;}
+    .modal.hidden{display:none;}
+    .modal-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);width:min(440px,92%);display:flex;flex-direction:column;gap:10px;}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
     @media(max-width:900px){header{position:static;} .two-col{grid-template-columns:1fr;} .tab-buttons button{flex:1 1 100%;}}
     @media(max-width:900px){.inventory-layout{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
+  <div id="introModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="command-title" id="introTitle">Welcome to Zero Lux</div>
+      <div class="small" id="introMessage"></div>
+      <div class="modal-actions" id="introActions"></div>
+    </div>
+  </div>
   <div id="app">
     <header>
       <div>
@@ -319,7 +340,9 @@
 
   <script>
     /* ================= STATE & CONSTANTS ================= */
-    const state={
+    const SAVE_KEY='zeroLuxSave';
+    const SAVE_VERSION=1;
+    const createDefaultState=()=>({
       hp:92,maxHp:100,
       stamina:90,maxStamina:100,
       morale:62,maxMorale:100,
@@ -337,6 +360,9 @@
       stashLimit:40,
       stashUpgradeLevel:0,
       craftingPage:0,
+      inventoryPage:0,
+      stashPage:0,
+      loadoutPage:0,
       inventory:["rusty flashlight","ration bar","scrap wiring"],
       equipped:['basic backpack'],
       codex:["Hub online. Haul bays clear."],
@@ -351,7 +377,40 @@
       inventoryScreen:'backpack',
       stashScreen:'vault',
       selected:{source:null,item:null}
+    });
+    const hydrateState=(saved)=>{
+      const base=createDefaultState();
+      if(!saved || typeof saved!=='object') return base;
+      const merged={...base,...saved};
+      merged.flags=new Set(saved.flags || []);
+      merged.stash={...base.stash,...(saved.stash||{})};
+      merged.idleOps={...base.idleOps,...(saved.idleOps||{})};
+      merged.zone={...base.zone,...(saved.zone||{})};
+      merged.travel={...base.travel,...(saved.travel||{})};
+      merged.mission={...base.mission,...(saved.mission||{})};
+      merged.selected={...base.selected,...(saved.selected||{})};
+      return merged;
     };
+    const loadSavedState=()=>{
+      try{
+        const raw=localStorage.getItem(SAVE_KEY);
+        if(!raw) return null;
+        return hydrateState(JSON.parse(raw));
+      }catch(err){
+        console.warn('Save load failed.',err);
+        return null;
+      }
+    };
+    const saveGame=()=>{
+      try{
+        const payload={...state,flags:Array.from(state.flags||[]),saveVersion:SAVE_VERSION};
+        localStorage.setItem(SAVE_KEY,JSON.stringify(payload));
+      }catch(err){
+        console.warn('Save failed.',err);
+      }
+    };
+    const savedState=loadSavedState();
+    let state=savedState || createDefaultState();
 
     const ITEM_CATALOG={
       'basic backpack':{type:'armor',slot:'backpack',rarity:'common',value:6,mods:{carryBonus:6,insulation:0.1}},
@@ -533,6 +592,10 @@
     ];
 
     const dom={
+      introModal:document.getElementById('introModal'),
+      introTitle:document.getElementById('introTitle'),
+      introMessage:document.getElementById('introMessage'),
+      introActions:document.getElementById('introActions'),
       stats:document.getElementById('stats'),
       meta:document.getElementById('meta'),
       excursionStatus:document.getElementById('excursionStatus'),
@@ -646,6 +709,7 @@
       setCodex(msg);
     }
 
+    const GRID_PAGE_SIZE=18;
     const STACK_LIMIT=25;
     const STACKABLE_CHUNK_RANGE={min:5,max:20};
     const STACKABLE_ITEMS=new Set(['scrap bundle','wire spool','cloth scraps','plastic shards','electronics bits','scrap wiring','copper wire']);
@@ -1236,6 +1300,78 @@
       return row;
     }
 
+    function buildItemTile({id,count,data,source}){
+      const tile=document.createElement('button');
+      tile.type='button';
+      tile.className='icon-tile';
+      if(state.selected.source===source && state.selected.item===id){
+        tile.classList.add('selected');
+      }
+      tile.onclick=()=>selectItem(source,id);
+      tile.title=`${id} ×${count}`;
+      const name=document.createElement('div');
+      name.className='icon-name';
+      name.textContent=id;
+      const meta=document.createElement('div');
+      meta.className='icon-meta';
+      const metaParts=[];
+      if(data.slot) metaParts.push(slotLabel(data.slot));
+      metaParts.push(rarityLabel(data.rarity) || data.type);
+      meta.textContent=metaParts.filter(Boolean).join(' · ');
+      const countEl=document.createElement('div');
+      countEl.className='icon-count';
+      countEl.textContent=`×${count}`;
+      tile.appendChild(name);
+      tile.appendChild(meta);
+      tile.appendChild(countEl);
+      return tile;
+    }
+
+    function buildEmptySlotTile(label){
+      const tile=document.createElement('button');
+      tile.type='button';
+      tile.disabled=true;
+      tile.className='icon-tile empty';
+      const name=document.createElement('div');
+      name.className='icon-name';
+      name.textContent=label;
+      const meta=document.createElement('div');
+      meta.className='icon-meta';
+      meta.textContent='Empty slot';
+      tile.appendChild(name);
+      tile.appendChild(meta);
+      return tile;
+    }
+
+    function paginateEntries(entries,pageKey,pageSize){
+      const totalPages=Math.max(1,Math.ceil(entries.length/pageSize));
+      const safePage=clamp(state[pageKey] || 0,0,totalPages-1);
+      state[pageKey]=safePage;
+      const start=safePage*pageSize;
+      return {entries:entries.slice(start,start+pageSize),page:safePage,totalPages};
+    }
+
+    function renderPager({page,totalPages,onPrev,onNext,label}){
+      if(totalPages<=1) return null;
+      const pager=document.createElement('div');
+      pager.className='icon-pager';
+      const prev=document.createElement('button');
+      prev.textContent=label ? `Prev ${label}` : 'Prev';
+      prev.disabled=page<=0;
+      prev.onclick=onPrev;
+      const info=document.createElement('div');
+      info.className='page-info';
+      info.textContent=`Page ${page+1} of ${totalPages}`;
+      const next=document.createElement('button');
+      next.textContent=label ? `Next ${label}` : 'Next';
+      next.disabled=page>=totalPages-1;
+      next.onclick=onNext;
+      pager.appendChild(prev);
+      pager.appendChild(info);
+      pager.appendChild(next);
+      return pager;
+    }
+
     function renderItemDetails(){
       let {source,item}=state.selected;
       const sourceHasItem=()=>{
@@ -1388,20 +1524,43 @@
         empty.textContent='Backpack empty. Run raids to pull more loot.';
         dom.inventory.appendChild(empty);
       }else{
-        groupItems(state.inventory).forEach(({id,count,data})=>{
-          dom.inventory.appendChild(buildItemRow({id,count,data,source:'inventory'}));
+        const grid=document.createElement('div');
+        grid.className='icon-grid';
+        const grouped=groupItems(state.inventory);
+        const {entries,page,totalPages}=paginateEntries(grouped,'inventoryPage',GRID_PAGE_SIZE);
+        entries.forEach(({id,count,data})=>{
+          grid.appendChild(buildItemTile({id,count,data,source:'inventory'}));
         });
-      }
-      if(!state.equipped.length){
-        const empty=document.createElement('div');
-        empty.className='muted-box';
-        empty.textContent='Loadout slots open. Equip gear into available slots.';
-        dom.equipment.appendChild(empty);
-      }else{
-        groupItems(state.equipped).forEach(({id,count,data})=>{
-          dom.equipment.appendChild(buildItemRow({id,count,data,source:'equipped'}));
+        dom.inventory.appendChild(grid);
+        const pager=renderPager({
+          page,
+          totalPages,
+          label:'items',
+          onPrev:()=>{state.inventoryPage=Math.max(0,page-1); renderInventory();},
+          onNext:()=>{state.inventoryPage=Math.min(totalPages-1,page+1); renderInventory();}
         });
+        if(pager) dom.inventory.appendChild(pager);
       }
+      const equipmentGrid=document.createElement('div');
+      equipmentGrid.className='icon-grid';
+      const equippedBySlot=Object.keys(EQUIPMENT_SLOTS).reduce((acc,key)=>{acc[key]=[];return acc;},{});
+      state.equipped.forEach(item=>{
+        const slot=getItem(item).slot;
+        if(slot && equippedBySlot[slot]){
+          equippedBySlot[slot].push(item);
+        }
+      });
+      Object.entries(EQUIPMENT_SLOTS).forEach(([slot,count])=>{
+        for(let i=0;i<count;i++){
+          const item=equippedBySlot[slot].shift();
+          if(item){
+            equipmentGrid.appendChild(buildItemTile({id:item,count:1,data:getItem(item),source:'equipped'}));
+          }else{
+            equipmentGrid.appendChild(buildEmptySlotTile(slotLabel(slot)));
+          }
+        }
+      });
+      dom.equipment.appendChild(equipmentGrid);
       if(dom.backpackCount){
         dom.backpackCount.textContent=`(${getBackpackUsage()}/${getBackpackLimit()})`;
       }
@@ -1681,6 +1840,7 @@
     });
 
     function setInventoryScreen(screen){
+      const changed=state.inventoryScreen!==screen;
       state.inventoryScreen=screen;
       dom.inventoryNav.forEach(btn=>{
         btn.classList.toggle('active',btn.dataset.invScreen===screen);
@@ -1688,6 +1848,9 @@
       Object.entries(dom.inventoryScreens).forEach(([id,el])=>{
         el.classList.toggle('active',id===screen);
       });
+      if(changed){
+        clearSelection();
+      }
     }
 
     function setStashScreen(screen){
@@ -1707,6 +1870,17 @@
     dom.stashNav.forEach(btn=>{
       btn.onclick=()=>setStashScreen(btn.dataset.stashScreen);
     });
+
+    function clearSelection(){
+      if(!state.selected.source) return;
+      state.selected={source:null,item:null};
+      renderItemDetails();
+      renderInventory();
+      renderStash();
+      renderHaul();
+      renderMissionStatus();
+      renderIdleOps();
+    }
 
     function selectItem(source,item){
       state.selected={source,item};
@@ -1732,6 +1906,9 @@
         return;
       }
       state.screen=screen;
+      if(screen==='locations'){
+        ensureExpansionsLoaded();
+      }
       renderScreens();
     }
 
@@ -2035,20 +2212,33 @@
       dom.stash.innerHTML='';
       dom.stashActions.innerHTML='';
       const vaultAccess=canAccessVault();
-      const wrap=document.createElement('div');
-      wrap.className='item-grid';
       const items=state.stash.items;
       if(dom.stashCount){
         dom.stashCount.textContent=`(${getStashUsage()}/${state.stashLimit})`;
       }
       if(!items.length){
-        wrap.innerHTML='<div class="muted-box">Stash is empty. Move loot here for long-term storage.</div>';
+        const empty=document.createElement('div');
+        empty.className='muted-box';
+        empty.textContent='Stash is empty. Move loot here for long-term storage.';
+        dom.stash.appendChild(empty);
       }else{
-        groupItems(items).forEach(({id,count,data})=>{
-          wrap.appendChild(buildItemRow({id,count,data,source:'stash'}));
+        const grid=document.createElement('div');
+        grid.className='icon-grid';
+        const grouped=groupItems(items);
+        const {entries,page,totalPages}=paginateEntries(grouped,'stashPage',GRID_PAGE_SIZE);
+        entries.forEach(({id,count,data})=>{
+          grid.appendChild(buildItemTile({id,count,data,source:'stash'}));
         });
+        dom.stash.appendChild(grid);
+        const pager=renderPager({
+          page,
+          totalPages,
+          label:'items',
+          onPrev:()=>{state.stashPage=Math.max(0,page-1); renderStash();},
+          onNext:()=>{state.stashPage=Math.min(totalPages-1,page+1); renderStash();}
+        });
+        if(pager) dom.stash.appendChild(pager);
       }
-      dom.stash.appendChild(wrap);
       if(!vaultAccess){
         const blocked=document.createElement('div');
         blocked.className='muted-box';
@@ -2861,10 +3051,17 @@
     }
 
     /* ================= EXPANSION LOADING ================= */
+    function ensureExpansionsLoaded(){
+      const needsReload=expansionsAttempted===0 || (expansionsLoaded===0 && expansionsAttempted>=expansionsExpected);
+      if(dom.doors.children.length>0 && !needsReload) return;
+      dom.doors.innerHTML='';
+      loadGames();
+    }
+
     async function loadGames(){
       let manifest=EXPANSION_MANIFEST;
       try{
-        const res=await fetch('games.json');
+        const res=await fetch('games.json',{cache:'no-store'});
         if(res.ok){
           const data=await res.json();
           if(Array.isArray(data.expansions) && data.expansions.length){
@@ -2877,13 +3074,17 @@
       expansionsExpected=manifest.length;
       expansionsLoaded=0;
       expansionsAttempted=0;
+      dom.doors.innerHTML='';
       dom.doorsHint.textContent=manifest.length ? 'Loading expansions…' : 'No expansions configured.';
       manifest.forEach(meta=>loadExpansion(meta));
     }
 
     async function loadExpansion(meta){
       try{
-        const res=await fetch(meta.file);
+        const res=await fetch(meta.file,{cache:'no-store'});
+        if(!res.ok){
+          throw new Error(`Expansion fetch failed: ${meta.file}`);
+        }
         const raw=await res.text();
         const expansion=parseExpansion(raw);
         expansion.meta.id=meta.id || expansion.meta.id;
@@ -3026,9 +3227,53 @@
       syncTabs();
     }
 
+    function hideIntroModal(){
+      if(!dom.introModal) return;
+      dom.introModal.classList.add('hidden');
+    }
+
+    function showIntroModal({returning=false}={}){
+      if(!dom.introModal || !dom.introActions || !dom.introMessage || !dom.introTitle) return;
+      dom.introActions.innerHTML='';
+      if(returning){
+        dom.introTitle.textContent='Welcome back, runner';
+        dom.introMessage.textContent='Your last loop is ready. Continue where you left off or restart from day zero.';
+        const continueBtn=document.createElement('button');
+        continueBtn.textContent='Continue';
+        continueBtn.onclick=()=>{
+          hideIntroModal();
+          renderAll();
+        };
+        const restartBtn=document.createElement('button');
+        restartBtn.textContent='Restart';
+        restartBtn.classList.add('danger');
+        restartBtn.onclick=()=>{
+          localStorage.removeItem(SAVE_KEY);
+          state=createDefaultState();
+          renderAll();
+          saveGame();
+          hideIntroModal();
+        };
+        dom.introActions.appendChild(continueBtn);
+        dom.introActions.appendChild(restartBtn);
+      }else{
+        dom.introTitle.textContent='Fight, loot, survive.';
+        dom.introMessage.textContent='The drift is cold. Keep moving and build your loadout before the loop bites back.';
+        const startBtn=document.createElement('button');
+        startBtn.textContent='Begin';
+        startBtn.onclick=()=>{
+          saveGame();
+          hideIntroModal();
+        };
+        dom.introActions.appendChild(startBtn);
+      }
+      dom.introModal.classList.remove('hidden');
+    }
+
     /* ================= INIT ================= */
     renderAll();
     loadGames();
+    showIntroModal({returning:Boolean(savedState)});
 
     function updateTimers(){
       if(state.travel.active && Date.now()>=state.travel.endsAt){
@@ -3104,6 +3349,8 @@
 
     setInterval(ambientTick,6500);
     setInterval(updateTimers,250);
+    setInterval(saveGame,60000);
+    window.addEventListener('beforeunload',saveGame);
   </script>
 </body>
 </html>
