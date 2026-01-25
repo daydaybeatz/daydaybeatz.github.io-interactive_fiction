@@ -298,14 +298,14 @@
       </div>
       <div id="tab-field" class="tab-content">
         <section class="panel">
-          <h3>Stash Vault</h3>
+          <h3 id="stashTitle">Stash Vault</h3>
           <div class="subtabs" id="stashNav">
             <button data-stash-screen="vault" class="active">Vault</button>
           </div>
           <div class="inventory-layout">
             <div>
               <div id="stashVault" class="subscreen active">
-                <h4>Vault Inventory <span class="small" id="stashCount"></span></h4>
+                <h4 id="stashSubtitle">Vault Inventory <span class="small" id="stashCount"></span></h4>
                 <div id="stash"></div>
                 <div class="market-section">
                   <h4>Vendor stock</h4>
@@ -652,6 +652,8 @@
       stashDetail:document.getElementById('stashDetail'),
       stashItemActions:document.getElementById('stashItemActions'),
       stashCount:document.getElementById('stashCount'),
+      stashTitle:document.getElementById('stashTitle'),
+      stashSubtitle:document.getElementById('stashSubtitle'),
       marketInventory:document.getElementById('marketInventory'),
       marketHint:document.getElementById('marketHint'),
       itemDetail:document.getElementById('itemDetail'),
@@ -1441,6 +1443,7 @@
       }
       const data=item?getItem(item):null;
       const vaultAccess=canAccessVault();
+      const marketActive=canAccessMarket();
       const missionRewardsReady=state.mission.active && state.mission.completed && (state.mission.rewards?.length||0)>0;
       const missionRewardDefault=missionRewardsReady
         ? 'Use the inline pack/equip buttons on each reward for faster routing.'
@@ -1494,14 +1497,18 @@
         if(data.type==='consumable'){
           actionConfigs.push({label:'Use item',action:()=>consumeItem(item)});
         }
-        actionConfigs.push({
-          label:'Route to vault',
-          action:()=>stashItem(item),
-          disabled:!vaultAccess || !hasCapacityFor(state.stash.items,state.stashLimit,item,1),
-          blockedHint:!vaultAccess ? vaultBlockedMessage : ''
-        });
+        if(vaultAccess){
+          actionConfigs.push({
+            label:'Route to vault',
+            action:()=>stashItem(item),
+            disabled:!hasCapacityFor(state.stash.items,state.stashLimit,item,1),
+            blockedHint:''
+          });
+        }
         actionConfigs.push({label:'Break down for scrap',action:()=>dismantleItem(item)});
-        actionConfigs.push({label:'Sell to market',action:()=>sellItem(item),disabled:!canAccessMarket(),blockedHint:'Visit a shop to sell.'});
+        if(marketActive){
+          actionConfigs.push({label:'Sell to market',action:()=>sellItem(item)});
+        }
       }else if(source==='equipped'){
         actionConfigs.push({label:'Return to backpack',action:()=>unequipItem(item),disabled:!canUnequipItem(item)});
       }else if(source==='stash'){
@@ -1517,12 +1524,12 @@
           disabled:!vaultAccess,
           blockedHint:!vaultAccess ? vaultBlockedMessage : ''
         });
-        actionConfigs.push({
-          label:'Sell to market',
-          action:()=>sellStashItem(item),
-          disabled:!vaultAccess || !canAccessMarket(),
-          blockedHint:!vaultAccess ? vaultBlockedMessage : 'Visit a shop to sell.'
-        });
+        if(marketActive && vaultAccess){
+          actionConfigs.push({
+            label:'Sell to market',
+            action:()=>sellStashItem(item)
+          });
+        }
       }else if(source==='missionReward' && missionRewardsReady){
         actionConfigs.push({label:'Pack into backpack',action:()=>claimRewardToInventory(source,item),disabled:!hasCapacityFor(state.inventory,getBackpackLimit(),item,1)});
         if(data.slot){
@@ -2086,7 +2093,7 @@
         return;
       }
       state.marketAccess={active:true,zoneId:state.zone.id};
-      setCodex('Vendor bay open. Access the stash tab to trade.');
+      setCodex('Vendor bay open. Trade out of your active pack while the shop is live.');
       setActiveTab('field');
       renderAll();
     }
@@ -2103,6 +2110,7 @@
       const label=option.label || 'Local action';
       const risk=option.risk || state.zone.risk;
       const time=option.time || 8;
+      const durationMs=computeMissionDurationMs({risk,time,loot:option.loot});
       const raidLike={
         id:`scene-${Date.now()}`,
         label,
@@ -2118,7 +2126,7 @@
         type:'scene',
         raid:raidLike,
         startedAt:now,
-        endsAt:now+(time*60000),
+        endsAt:now+durationMs,
         completed:false,
         success:null,
         summary:'',
@@ -2335,14 +2343,29 @@
       dom.stash.innerHTML='';
       dom.stashActions.innerHTML='';
       const vaultAccess=canAccessVault();
-      const items=state.stash.items;
+      const marketActive=canAccessMarket();
+      const useShopInventory=marketActive && !vaultAccess;
+      const items=useShopInventory ? state.inventory : state.stash.items;
+      if(dom.stashTitle){
+        dom.stashTitle.textContent=useShopInventory ? 'Trade Bay' : 'Stash Vault';
+      }
+      if(dom.stashSubtitle){
+        dom.stashSubtitle.innerHTML=useShopInventory
+          ? `Backpack Inventory <span class="small" id="stashCount"></span>`
+          : `Vault Inventory <span class="small" id="stashCount"></span>`;
+        dom.stashCount=document.getElementById('stashCount');
+      }
       if(dom.stashCount){
-        dom.stashCount.textContent=`(${getStashUsage()}/${state.stashLimit})`;
+        dom.stashCount.textContent=useShopInventory
+          ? `(${getBackpackUsage()}/${getBackpackLimit()})`
+          : `(${getStashUsage()}/${state.stashLimit})`;
       }
       if(!items.length){
         const empty=document.createElement('div');
         empty.className='muted-box';
-        empty.textContent='Stash is empty. Move loot here for long-term storage.';
+        empty.textContent=useShopInventory
+          ? 'Backpack is empty. Trade when you have gear on hand.'
+          : 'Stash is empty. Move loot here for long-term storage.';
         dom.stash.appendChild(empty);
       }else{
         const grid=document.createElement('div');
@@ -2350,7 +2373,7 @@
         const grouped=groupItems(items);
         const {entries,page,totalPages}=paginateEntries(grouped,'stashPage',GRID_PAGE_SIZE);
         entries.forEach(({id,count,data})=>{
-          grid.appendChild(buildItemTile({id,count,data,source:'stash'}));
+          grid.appendChild(buildItemTile({id,count,data,source:useShopInventory ? 'inventory' : 'stash'}));
         });
         dom.stash.appendChild(grid);
         const pager=renderPager({
@@ -2365,8 +2388,12 @@
       if(!vaultAccess){
         const blocked=document.createElement('div');
         blocked.className='muted-box';
-        blocked.textContent=vaultBlockedMessage;
+        blocked.textContent=marketActive
+          ? 'Trade bay open. Select backpack items to sell or break down.'
+          : vaultBlockedMessage;
         dom.stashActions.appendChild(blocked);
+        renderMarketStock();
+        return;
       }
       const upgradesHeading=document.createElement('div');
       upgradesHeading.className='command-title';
@@ -2560,6 +2587,16 @@
     }
 
     const getRiskIndex=(risk)=>riskRank[risk] || riskRank.low;
+    const MIN_MISSION_SECONDS=5;
+    const MAX_MISSION_SECONDS=60;
+    const computeMissionDurationSeconds=({risk='low',time=8,loot=0}={})=>{
+      const riskIdx=getRiskIndex(risk);
+      const timeWeight=Math.max(1,time*0.8);
+      const lootWeight=loot ? loot*2 : 0;
+      const base=5+((riskIdx-1)*8)+timeWeight+lootWeight;
+      return clamp(Math.round(base),MIN_MISSION_SECONDS,MAX_MISSION_SECONDS);
+    };
+    const computeMissionDurationMs=(params)=>computeMissionDurationSeconds(params)*1000;
     const computeMissionXp=(risk,time)=>{
       const riskIdx=getRiskIndex(risk);
       return Math.max(12,Math.round(18+(riskIdx*12)+(time*1.6)));
@@ -2591,8 +2628,7 @@
       const combatProfile=getCombatProfile(pending.risk);
       const combatState=initCombatState(combatProfile);
       const now=Date.now();
-      const estimatedMs=combatState.expectedRounds*COMBAT_ROUND_MS;
-      combatProfile.time=Math.max(6,Math.round((estimatedMs/60000)*10)/10);
+      const estimatedMs=clamp(combatState.expectedRounds*COMBAT_ROUND_MS,MIN_MISSION_SECONDS*1000,MAX_MISSION_SECONDS*1000);
       state.mission={
         ...state.mission,
         type:'combat',
@@ -2646,7 +2682,7 @@
       state.selected={source:null,item:null};
       renderAll();
     }
-    const COMBAT_ROUND_MS=2000;
+    const COMBAT_ROUND_MS=1200;
     const COMBAT_CONSUME_MS=3000;
     const combatVariance=(base,spread)=>Math.max(1,Math.round(base*(1-spread)+(Math.random()*base*spread*2)));
     const describeCombatState=(combat)=>`Enemy HP ${Math.max(0,Math.round(combat.enemyHp))}/${Math.round(combat.enemyMaxHp)} · Enemies left ${combat.enemiesRemaining}/${combat.totalEnemies}`;
@@ -2810,8 +2846,7 @@
       applyCost(cost);
       const combatState=initCombatState(profile);
       const now=Date.now();
-      const estimatedMs=combatState.expectedRounds*COMBAT_ROUND_MS;
-      profile.time=Math.max(6,Math.round((estimatedMs/60000)*10)/10);
+      const estimatedMs=clamp(combatState.expectedRounds*COMBAT_ROUND_MS,MIN_MISSION_SECONDS*1000,MAX_MISSION_SECONDS*1000);
       state.mission={
         active:true,
         type:'combat',
@@ -2867,12 +2902,13 @@
       }
       applyCost(cost);
       const now=Date.now();
+      const durationMs=computeMissionDurationMs({risk:raidLike.risk,time:raidLike.time,loot:raidLike.loot});
       state.mission={
         active:true,
         type:'contract',
         raid:raidLike,
         startedAt:now,
-        endsAt:now+(raidLike.time*60000),
+        endsAt:now+durationMs,
         completed:false,
         success:null,
         summary:'',
@@ -2926,12 +2962,13 @@
       }
       applyCost(cost);
       const now=Date.now();
+      const durationMs=computeMissionDurationMs({risk:raid.risk,time:raid.time,loot:raid.loot});
       state.mission={
         active:true,
         type:'raid',
         raid,
         startedAt:now,
-        endsAt:now+(raid.time*60000),
+        endsAt:now+durationMs,
         completed:false,
         success:null,
         summary:'',
