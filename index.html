@@ -301,12 +301,17 @@
           <h3 id="stashTitle">Stash Vault</h3>
           <div class="subtabs" id="stashNav">
             <button data-stash-screen="vault" class="active">Vault</button>
+            <button data-stash-screen="market">Shop</button>
           </div>
           <div class="inventory-layout">
             <div>
               <div id="stashVault" class="subscreen active">
                 <h4 id="stashSubtitle">Vault Inventory <span class="small" id="stashCount"></span></h4>
                 <div id="stash"></div>
+              </div>
+              <div id="stashMarket" class="subscreen">
+                <h4 id="marketSubtitle">Backpack Inventory <span class="small" id="marketBackpackCount"></span></h4>
+                <div id="marketBackpack"></div>
                 <div class="market-section">
                   <h4>Vendor stock</h4>
                   <div class="command-hint" id="marketHint">Visit a shop in your current location to access vendors.</div>
@@ -315,7 +320,7 @@
               </div>
             </div>
             <div class="command-card">
-              <div class="command-title">Vault Command Card</div>
+              <div class="command-title" id="stashCommandTitle">Vault Command Card</div>
               <div id="stashDetail" class="command-hint">Select stash items to transfer, scrap, or sell.</div>
               <div class="action-grid" id="stashItemActions"></div>
             </div>
@@ -384,6 +389,10 @@
       const missionEndsAt=Number(merged.mission.endsAt);
       merged.mission.startedAt=Number.isFinite(missionStartedAt) ? missionStartedAt : null;
       merged.mission.endsAt=Number.isFinite(missionEndsAt) ? missionEndsAt : null;
+      const idleStartedAt=Number(merged.idleOps.startedAt);
+      const idleDurationMs=Number(merged.idleOps.durationMs);
+      merged.idleOps.startedAt=Number.isFinite(idleStartedAt) ? idleStartedAt : null;
+      merged.idleOps.durationMs=Number.isFinite(idleDurationMs) ? idleDurationMs : 0;
       return merged;
     };
     const loadSavedState=()=>{
@@ -661,8 +670,12 @@
       stashCount:document.getElementById('stashCount'),
       stashTitle:document.getElementById('stashTitle'),
       stashSubtitle:document.getElementById('stashSubtitle'),
+      stashCommandTitle:document.getElementById('stashCommandTitle'),
       marketInventory:document.getElementById('marketInventory'),
       marketHint:document.getElementById('marketHint'),
+      marketBackpack:document.getElementById('marketBackpack'),
+      marketBackpackCount:document.getElementById('marketBackpackCount'),
+      marketSubtitle:document.getElementById('marketSubtitle'),
       itemDetail:document.getElementById('itemDetail'),
       itemActions:document.getElementById('itemActions'),
       inventoryNav:Array.from(document.querySelectorAll('#inventoryNav button')),
@@ -673,7 +686,8 @@
       },
       stashNav:Array.from(document.querySelectorAll('#stashNav button')),
       stashScreens:{
-        vault:document.getElementById('stashVault')
+        vault:document.getElementById('stashVault'),
+        market:document.getElementById('stashMarket')
       },
       tabs:document.querySelector('.tabs'),
       tabButtons:Array.from(document.querySelectorAll('.tab-buttons button')),
@@ -727,6 +741,9 @@
     const clearMarketAccess=()=>{
       if(state.marketAccess.active){
         state.marketAccess={active:false,zoneId:null};
+        if(state.stashScreen==='market'){
+          state.stashScreen='vault';
+        }
       }
     };
     const vaultBlockedMessage='Return to the Cold Shelter hatch to access the vault.';
@@ -1124,6 +1141,7 @@
         setCodex('Insufficient resources for this operation.');
         return;
       }
+      startLoops();
       applyCost(op.cost);
       const gearMods=getGearMods();
       const duration=getIdleDurationMinutes(op,gearMods);
@@ -1206,6 +1224,11 @@
       if(!cfg) return false;
       return cfg.getItems().includes(item);
     };
+    const getRewardItemCount=(source,item)=>{
+      const cfg=getRewardConfig(source);
+      if(!cfg) return 0;
+      return cfg.getItems().filter(entry=>entry===item).length;
+    };
     const removeRewardItem=(source,item)=>{
       const cfg=getRewardConfig(source);
       if(!cfg) return false;
@@ -1214,6 +1237,11 @@
       if(idx<0) return false;
       bucket.splice(idx,1);
       return true;
+    };
+    const removeRewardItems=(source,item,count)=>{
+      const cfg=getRewardConfig(source);
+      if(!cfg) return false;
+      return removeItems(cfg.getItems(),item,count);
     };
     const salvageValue=(item)=>{
       const data=getItem(item);
@@ -1234,6 +1262,20 @@
       state.inventory.push(item);
       state.selected={source:'inventory',item};
       setCodex(`${item} packed into your backpack.`);
+      autoCloseMissionIfResolved();
+      renderAll();
+    }
+    function claimRewardStackToInventory(source,item){
+      const count=getRewardItemCount(source,item);
+      if(!count) return;
+      if(!hasCapacityFor(state.inventory,getBackpackLimit(),item,count)){
+        setCodex('Backpack full. Make room first.');
+        return;
+      }
+      if(!removeRewardItems(source,item,count)) return;
+      addItemCopies(state.inventory,item,count);
+      state.selected={source:'inventory',item};
+      setCodex(`${item} stack packed into your backpack.`);
       autoCloseMissionIfResolved();
       renderAll();
     }
@@ -1455,9 +1497,12 @@
       const missionRewardDefault=missionRewardsReady
         ? 'Use the inline pack/equip buttons on each reward for faster routing.'
         : 'Complete a mission to review rewards.';
+      const stashDefault=state.stashScreen==='market'
+        ? 'Select backpack items to sell or break down in the trade bay.'
+        : 'Select stash items to transfer, scrap, or sell.';
       const targets=[
         {detail:dom.itemDetail,actions:dom.itemActions,default:'Select gear to view stats, uses, and actions.'},
-        {detail:dom.stashDetail,actions:dom.stashItemActions,default:'Select stash items to transfer, scrap, or sell.'},
+        {detail:dom.stashDetail,actions:dom.stashItemActions,default:stashDefault},
         {detail:dom.missionRewardDetail,actions:dom.missionRewardActions,default:missionRewardDefault}
       ];
       targets.forEach(target=>{
@@ -1538,7 +1583,15 @@
           });
         }
       }else if(source==='missionReward' && missionRewardsReady){
+        const rewardCount=getRewardItemCount(source,item);
         actionConfigs.push({label:'Pack into backpack',action:()=>claimRewardToInventory(source,item),disabled:!hasCapacityFor(state.inventory,getBackpackLimit(),item,1)});
+        if(rewardCount>1){
+          actionConfigs.push({
+            label:'Take stack',
+            action:()=>claimRewardStackToInventory(source,item),
+            disabled:!hasCapacityFor(state.inventory,getBackpackLimit(),item,rewardCount)
+          });
+        }
         if(data.slot){
           const check=canEquipItem(item);
           actionConfigs.push({label:'Equip now',action:()=>equipRewardItem(source,item),disabled:!check.ok,blockedHint:check.reason});
@@ -1743,8 +1796,9 @@
       const vaultAccess=canAccessVault();
       if(state.idleOps.active){
         const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
-        const elapsed=Math.max(0,(Date.now()-state.idleOps.startedAt)/1000);
-        const total=state.idleOps.durationMs/1000;
+        const startedAt=Number.isFinite(state.idleOps.startedAt) ? state.idleOps.startedAt : Date.now();
+        const elapsed=Math.max(0,(Date.now()-startedAt)/1000);
+        const total=Math.max(1,state.idleOps.durationMs/1000);
         const pctDone=clamp((elapsed/total)*100,0,100);
         const card=document.createElement('div');
         card.className='op-card';
@@ -1782,37 +1836,41 @@
         rewardsWrap.className='item-grid';
         const rewards=state.idleOps.rewards || [];
         if(rewards.length){
-          rewards.forEach(item=>{
-            const data=getItem(item);
-            const row=buildItemRow({id:item,count:1,data,source:'idleReward'});
+          groupItems(rewards).forEach(({id,count,data})=>{
+            const row=buildItemRow({id,count,data,source:'idleReward'});
             rewardsWrap.appendChild(row);
             const actions=document.createElement('div');
             actions.className='inline-actions';
             const packBtn=document.createElement('button');
-            packBtn.textContent='Pack';
-            packBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),item,1);
-            packBtn.onclick=()=>claimRewardToInventory('idleReward',item);
+            packBtn.textContent='Take one';
+            packBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
+            packBtn.onclick=()=>claimRewardToInventory('idleReward',id);
             actions.appendChild(packBtn);
+            const stackBtn=document.createElement('button');
+            stackBtn.textContent='Take stack';
+            stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
+            stackBtn.onclick=()=>claimRewardStackToInventory('idleReward',id);
+            actions.appendChild(stackBtn);
             if(data.slot){
               const equipBtn=document.createElement('button');
               equipBtn.textContent='Equip';
-              equipBtn.disabled=!canEquipItem(item).ok;
-              equipBtn.onclick=()=>equipRewardItem('idleReward',item);
+              equipBtn.disabled=!canEquipItem(id).ok;
+              equipBtn.onclick=()=>equipRewardItem('idleReward',id);
               actions.appendChild(equipBtn);
             }
             const vaultBtn=document.createElement('button');
             vaultBtn.textContent='Vault';
-            vaultBtn.disabled=!vaultAccess || !hasCapacityFor(state.stash.items,state.stashLimit,item,1);
+            vaultBtn.disabled=!vaultAccess || !hasCapacityFor(state.stash.items,state.stashLimit,id,1);
             vaultBtn.title=vaultAccess ? '' : vaultBlockedMessage;
-            vaultBtn.onclick=()=>claimRewardToVault('idleReward',item);
+            vaultBtn.onclick=()=>claimRewardToVault('idleReward',id);
             actions.appendChild(vaultBtn);
             const scrapBtn=document.createElement('button');
-            scrapBtn.textContent=`Scrap ${salvageValue(item)}`;
-            scrapBtn.onclick=()=>scrapRewardItem('idleReward',item);
+            scrapBtn.textContent=`Scrap ${salvageValue(id)}`;
+            scrapBtn.onclick=()=>scrapRewardItem('idleReward',id);
             actions.appendChild(scrapBtn);
             const leaveBtn=document.createElement('button');
             leaveBtn.textContent='Leave';
-            leaveBtn.onclick=()=>leaveRewardItem('idleReward',item);
+            leaveBtn.onclick=()=>leaveRewardItem('idleReward',id);
             actions.appendChild(leaveBtn);
             rewardsWrap.appendChild(actions);
           });
@@ -1909,6 +1967,7 @@
     }
 
     function setStashScreen(screen){
+      const changed=state.stashScreen!==screen;
       state.stashScreen=screen;
       dom.stashNav.forEach(btn=>{
         btn.classList.toggle('active',btn.dataset.stashScreen===screen);
@@ -1916,6 +1975,9 @@
       Object.entries(dom.stashScreens).forEach(([id,el])=>{
         el.classList.toggle('active',id===screen);
       });
+      if(changed){
+        clearSelection();
+      }
     }
 
     dom.inventoryNav.forEach(btn=>{
@@ -2102,6 +2164,7 @@
       state.marketAccess={active:true,zoneId:state.zone.id};
       setCodex('Vendor bay open. Trade out of your active pack while the shop is live.');
       setActiveTab('field');
+      setStashScreen('market');
       renderAll();
     }
 
@@ -2250,14 +2313,16 @@
             wrap.appendChild(buildItemRow({id,count,data,source:'missionReward'}));
             const actions=document.createElement('div');
             actions.className='inline-actions';
-            const packBtn=document.createElement('button');
-            packBtn.textContent=`Backpack (${count})`;
-            packBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
-            packBtn.onclick=()=>{
-              const moveCount=Math.min(count,rewards.filter(entry=>entry===id).length);
-              for(let i=0;i<moveCount;i++) claimRewardToInventory('missionReward',id);
-            };
-            actions.appendChild(packBtn);
+            const takeOneBtn=document.createElement('button');
+            takeOneBtn.textContent='Take one';
+            takeOneBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
+            takeOneBtn.onclick=()=>claimRewardToInventory('missionReward',id);
+            actions.appendChild(takeOneBtn);
+            const stackBtn=document.createElement('button');
+            stackBtn.textContent='Take stack';
+            stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
+            stackBtn.onclick=()=>claimRewardStackToInventory('missionReward',id);
+            actions.appendChild(stackBtn);
             if(data.slot){
               const equipBtn=document.createElement('button');
               equipBtn.textContent='Equip';
@@ -2350,31 +2415,70 @@
 
     function renderStash(){
       dom.stash.innerHTML='';
+      dom.marketBackpack.innerHTML='';
       dom.stashActions.innerHTML='';
       const vaultAccess=canAccessVault();
       const marketActive=canAccessMarket();
-      const useShopInventory=marketActive && !vaultAccess;
-      const items=useShopInventory ? state.inventory : state.stash.items;
+      const inMarketScreen=state.stashScreen==='market';
       if(dom.stashTitle){
-        dom.stashTitle.textContent=useShopInventory ? 'Trade Bay' : 'Stash Vault';
+        dom.stashTitle.textContent=inMarketScreen ? 'Trade Bay' : 'Stash Vault';
+      }
+      if(dom.stashCommandTitle){
+        dom.stashCommandTitle.textContent=inMarketScreen ? 'Trade Console' : 'Vault Command Card';
+      }
+      if(inMarketScreen){
+        if(dom.marketSubtitle){
+          dom.marketSubtitle.innerHTML=`Backpack Inventory <span class="small" id="marketBackpackCount"></span>`;
+          dom.marketBackpackCount=document.getElementById('marketBackpackCount');
+        }
+        if(dom.marketBackpackCount){
+          dom.marketBackpackCount.textContent=`(${getBackpackUsage()}/${getBackpackLimit()})`;
+        }
+        const items=state.inventory;
+        if(!items.length){
+          const empty=document.createElement('div');
+          empty.className='muted-box';
+          empty.textContent='Backpack is empty. Trade when you have gear on hand.';
+          dom.marketBackpack.appendChild(empty);
+        }else{
+          const grid=document.createElement('div');
+          grid.className='icon-grid';
+          const grouped=groupItems(items);
+          const {entries,page,totalPages}=paginateEntries(grouped,'stashPage',GRID_PAGE_SIZE);
+          entries.forEach(({id,count,data})=>{
+            grid.appendChild(buildItemTile({id,count,data,source:'inventory'}));
+          });
+          dom.marketBackpack.appendChild(grid);
+          const pager=renderPager({
+            page,
+            totalPages,
+            label:'items',
+            onPrev:()=>{state.stashPage=Math.max(0,page-1); renderStash();},
+            onNext:()=>{state.stashPage=Math.min(totalPages-1,page+1); renderStash();}
+          });
+          if(pager) dom.marketBackpack.appendChild(pager);
+        }
+        const notice=document.createElement('div');
+        notice.className='muted-box';
+        notice.textContent=marketActive
+          ? 'Trade bay open. Select backpack items to sell or break down.'
+          : 'Visit a shop to trade with local vendors.';
+        dom.stashActions.appendChild(notice);
+        renderMarketStock();
+        return;
       }
       if(dom.stashSubtitle){
-        dom.stashSubtitle.innerHTML=useShopInventory
-          ? `Backpack Inventory <span class="small" id="stashCount"></span>`
-          : `Vault Inventory <span class="small" id="stashCount"></span>`;
+        dom.stashSubtitle.innerHTML=`Vault Inventory <span class="small" id="stashCount"></span>`;
         dom.stashCount=document.getElementById('stashCount');
       }
       if(dom.stashCount){
-        dom.stashCount.textContent=useShopInventory
-          ? `(${getBackpackUsage()}/${getBackpackLimit()})`
-          : `(${getStashUsage()}/${state.stashLimit})`;
+        dom.stashCount.textContent=`(${getStashUsage()}/${state.stashLimit})`;
       }
+      const items=state.stash.items;
       if(!items.length){
         const empty=document.createElement('div');
         empty.className='muted-box';
-        empty.textContent=useShopInventory
-          ? 'Backpack is empty. Trade when you have gear on hand.'
-          : 'Stash is empty. Move loot here for long-term storage.';
+        empty.textContent='Stash is empty. Move loot here for long-term storage.';
         dom.stash.appendChild(empty);
       }else{
         const grid=document.createElement('div');
@@ -2382,7 +2486,7 @@
         const grouped=groupItems(items);
         const {entries,page,totalPages}=paginateEntries(grouped,'stashPage',GRID_PAGE_SIZE);
         entries.forEach(({id,count,data})=>{
-          grid.appendChild(buildItemTile({id,count,data,source:useShopInventory ? 'inventory' : 'stash'}));
+          grid.appendChild(buildItemTile({id,count,data,source:'stash'}));
         });
         dom.stash.appendChild(grid);
         const pager=renderPager({
@@ -2397,11 +2501,8 @@
       if(!vaultAccess){
         const blocked=document.createElement('div');
         blocked.className='muted-box';
-        blocked.textContent=marketActive
-          ? 'Trade bay open. Select backpack items to sell or break down.'
-          : vaultBlockedMessage;
+        blocked.textContent=vaultBlockedMessage;
         dom.stashActions.appendChild(blocked);
-        renderMarketStock();
         return;
       }
       const upgradesHeading=document.createElement('div');
@@ -3449,6 +3550,22 @@
       }
     }
 
+    function normalizeIdleTiming(now){
+      if(!state.idleOps.active) return;
+      const startedAt=Number.isFinite(state.idleOps.startedAt) ? state.idleOps.startedAt : null;
+      if(!Number.isFinite(startedAt)){
+        state.idleOps.startedAt=now;
+      }
+      const durationMs=Number(state.idleOps.durationMs);
+      if(!Number.isFinite(durationMs) || durationMs<=0){
+        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+        if(op){
+          const duration=getIdleDurationMinutes(op,getGearMods());
+          state.idleOps.durationMs=duration*60000;
+        }
+      }
+    }
+
     function updateTimers(){
       if(resolveTravelIfComplete()){
         renderAll();
@@ -3472,6 +3589,16 @@
       }
       if(state.travel.active){
         renderTravelStatus();
+      }
+      if(state.idleOps.active){
+        const now=Date.now();
+        normalizeIdleTiming(now);
+        const elapsed=now-(state.idleOps.startedAt || now);
+        if(elapsed>=state.idleOps.durationMs){
+          completeIdleOp();
+          return;
+        }
+        renderIdleOps();
       }
     }
 
