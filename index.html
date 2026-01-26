@@ -104,6 +104,9 @@
     .icon-tile.empty:hover{border-color:var(--border);transform:none;}
     .icon-pager{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap;}
     .icon-pager .page-info{font-size:12px;color:var(--muted);}
+    .reward-tile{display:flex;flex-direction:column;gap:6px;}
+    .reward-actions{display:flex;flex-wrap:wrap;gap:6px;}
+    .reward-actions button{min-height:32px;padding:6px 8px;font-size:12px;justify-content:center;text-align:center;}
     .item-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);}
     .item-row.selectable{cursor:pointer;transition:border .15s ease,transform .05s ease;}
     .item-row.selectable:hover{border-color:var(--accent);transform:translateY(-1px);}
@@ -251,16 +254,15 @@
                 <div class="mission-meta" id="missionMeta"></div>
                 <div class="progress" id="missionProgress"><span style="width:0%;"></span></div>
                 <div class="small" id="missionLog"></div>
-                <div class="mission-actions" id="missionActions"></div>
-              </div>
-              <div class="command-card" id="missionRewardsCard">
-                <div class="command-title">Mission rewards</div>
-                <div id="missionRewardDetail" class="command-hint">Complete a mission to review rewards.</div>
-                <div class="action-grid" id="missionRewardActions"></div>
-                <div id="missionRewardList" class="item-grid"></div>
-              </div>
-            </section>
-          </div>
+              <div class="mission-actions" id="missionActions"></div>
+            </div>
+            <div class="command-card" id="missionRewardsCard">
+              <div class="command-title">Mission rewards</div>
+              <div id="missionRewardHint" class="command-hint">Complete a mission to review rewards.</div>
+              <div id="missionRewardList" class="item-grid"></div>
+            </div>
+          </section>
+        </div>
         </div>
       </div>
       <div id="tab-inventory" class="tab-content">
@@ -575,16 +577,17 @@
     let expansionsLoaded=0;
     let expansionsAttempted=0;
     const idleOperations=[
-      {id:'salvage',label:'Drone salvage',desc:'Remote drones bring back scrap and junk.',duration:7,cost:{credits:8},reward:'scrap+3,item:scrap wiring'},
-      {id:'survey',label:'Cartography sweep',desc:'Low-risk sweep for new routes and caches.',duration:5,cost:{credits:5},reward:'credits+4,item:old coin'},
-      {id:'resupply',label:'Supply errand',desc:'Courier route for field medicine.',duration:9,cost:{credits:10,scrap:1},reward:'item:bandage,item:water flask'}
+      {id:'salvage',label:'Drone salvage',desc:'Remote drones bring back scrap and junk.',duration:3,cost:{credits:8},reward:'scrap+3,item:scrap wiring'},
+      {id:'survey',label:'Cartography sweep',desc:'Low-risk sweep for new routes and caches.',duration:2,cost:{credits:5},reward:'credits+4,item:old coin'},
+      {id:'resupply',label:'Supply errand',desc:'Courier route for field medicine.',duration:4,cost:{credits:10,scrap:1},reward:'item:bandage,item:water flask'}
     ];
 
-    const IDLE_DURATION_MULTIPLIER=1.65;
+    const IDLE_DURATION_MULTIPLIER=1;
     const formatMinutesPrecise=(minutes)=>minutes>=1?`${minutes.toFixed(1)} min`:`${Math.max(5,Math.round(minutes*60))}s`;
     const getIdleDurationMinutes=(op,gearMods=getGearMods())=>{
-      const base=Math.max(4,op.duration*IDLE_DURATION_MULTIPLIER);
-      return Math.max(3,base*(1-(gearMods.idleSpeed||0)));
+      const base=op.duration*IDLE_DURATION_MULTIPLIER;
+      const adjusted=base*(1-(gearMods.idleSpeed||0));
+      return clamp(adjusted,1,5);
     };
 
     const CRAFTING_PAGE_SIZE=4;
@@ -660,8 +663,7 @@
       missionLog:document.getElementById('missionLog'),
       missionActions:document.getElementById('missionActions'),
       missionRewardsCard:document.getElementById('missionRewardsCard'),
-      missionRewardDetail:document.getElementById('missionRewardDetail'),
-      missionRewardActions:document.getElementById('missionRewardActions'),
+      missionRewardHint:document.getElementById('missionRewardHint'),
       missionRewardList:document.getElementById('missionRewardList'),
       stash:document.getElementById('stash'),
       stashActions:document.getElementById('stashActions'),
@@ -1430,6 +1432,42 @@
       return tile;
     }
 
+    function buildRewardTile({id,count,data,source}){
+      const wrap=document.createElement('div');
+      wrap.className='reward-tile';
+      const tile=buildItemTile({id,count,data,source});
+      wrap.appendChild(tile);
+      if(state.selected.source===source && state.selected.item===id){
+        const actions=document.createElement('div');
+        actions.className='reward-actions';
+        const takeOneBtn=document.createElement('button');
+        takeOneBtn.textContent='Take one';
+        takeOneBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
+        takeOneBtn.onclick=()=>claimRewardToInventory(source,id);
+        actions.appendChild(takeOneBtn);
+        if(count>1){
+          const stackBtn=document.createElement('button');
+          stackBtn.textContent='Take stack';
+          stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
+          stackBtn.onclick=()=>claimRewardStackToInventory(source,id);
+          actions.appendChild(stackBtn);
+        }
+        if(data.slot){
+          const equipBtn=document.createElement('button');
+          equipBtn.textContent='Equip';
+          equipBtn.disabled=!canEquipItem(id).ok;
+          equipBtn.onclick=()=>equipRewardItem(source,id);
+          actions.appendChild(equipBtn);
+        }
+        const scrapBtn=document.createElement('button');
+        scrapBtn.textContent=`Scrap ${salvageValue(id)}`;
+        scrapBtn.onclick=()=>scrapRewardItem(source,id);
+        actions.appendChild(scrapBtn);
+        wrap.appendChild(actions);
+      }
+      return wrap;
+    }
+
     function buildEmptySlotTile(label){
       const tile=document.createElement('button');
       tile.type='button';
@@ -1493,17 +1531,12 @@
       const data=item?getItem(item):null;
       const vaultAccess=canAccessVault();
       const marketActive=canAccessMarket();
-      const missionRewardsReady=state.mission.active && state.mission.completed && (state.mission.rewards?.length||0)>0;
-      const missionRewardDefault=missionRewardsReady
-        ? 'Use the inline pack/equip buttons on each reward for faster routing.'
-        : 'Complete a mission to review rewards.';
       const stashDefault=state.stashScreen==='market'
         ? 'Select backpack items to sell or break down in the trade bay.'
         : 'Select stash items to transfer, scrap, or sell.';
       const targets=[
         {detail:dom.itemDetail,actions:dom.itemActions,default:'Select gear to view stats, uses, and actions.'},
-        {detail:dom.stashDetail,actions:dom.stashItemActions,default:stashDefault},
-        {detail:dom.missionRewardDetail,actions:dom.missionRewardActions,default:missionRewardDefault}
+        {detail:dom.stashDetail,actions:dom.stashItemActions,default:stashDefault}
       ];
       targets.forEach(target=>{
         if(!target.detail || !target.actions) return;
@@ -1582,22 +1615,6 @@
             action:()=>sellStashItem(item)
           });
         }
-      }else if(source==='missionReward' && missionRewardsReady){
-        const rewardCount=getRewardItemCount(source,item);
-        actionConfigs.push({label:'Pack into backpack',action:()=>claimRewardToInventory(source,item),disabled:!hasCapacityFor(state.inventory,getBackpackLimit(),item,1)});
-        if(rewardCount>1){
-          actionConfigs.push({
-            label:'Take stack',
-            action:()=>claimRewardStackToInventory(source,item),
-            disabled:!hasCapacityFor(state.inventory,getBackpackLimit(),item,rewardCount)
-          });
-        }
-        if(data.slot){
-          const check=canEquipItem(item);
-          actionConfigs.push({label:'Equip now',action:()=>equipRewardItem(source,item),disabled:!check.ok,blockedHint:check.reason});
-        }
-        actionConfigs.push({label:`Scrap for ${salvageValue(item)}`,action:()=>scrapRewardItem(source,item)});
-        actionConfigs.push({label:'Leave item',action:()=>leaveRewardItem(source,item)});
       }
       targets.forEach(target=>{
         if(!target.actions) return;
@@ -2273,8 +2290,7 @@
         dom.missionActions.innerHTML='';
         if(dom.missionRewardsCard) dom.missionRewardsCard.style.display='none';
         if(dom.missionRewardList) dom.missionRewardList.innerHTML='';
-        if(dom.missionRewardActions) dom.missionRewardActions.innerHTML='';
-        if(dom.missionRewardDetail) dom.missionRewardDetail.textContent='Complete a mission to review rewards.';
+        if(dom.missionRewardHint) dom.missionRewardHint.textContent='Complete a mission to review rewards.';
         return;
       }
       const raid=state.mission.raid;
@@ -2308,40 +2324,15 @@
       if(dom.missionRewardList){
         dom.missionRewardList.innerHTML='';
         if(rewardsReady){
+          if(dom.missionRewardHint) dom.missionRewardHint.textContent='Select a reward to choose an action.';
+          const grid=document.createElement('div');
+          grid.className='icon-grid';
           groupItems(rewards).forEach(({id,count,data})=>{
-            const wrap=document.createElement('div');
-            wrap.appendChild(buildItemRow({id,count,data,source:'missionReward'}));
-            const actions=document.createElement('div');
-            actions.className='inline-actions';
-            const takeOneBtn=document.createElement('button');
-            takeOneBtn.textContent='Take one';
-            takeOneBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
-            takeOneBtn.onclick=()=>claimRewardToInventory('missionReward',id);
-            actions.appendChild(takeOneBtn);
-            const stackBtn=document.createElement('button');
-            stackBtn.textContent='Take stack';
-            stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
-            stackBtn.onclick=()=>claimRewardStackToInventory('missionReward',id);
-            actions.appendChild(stackBtn);
-            if(data.slot){
-              const equipBtn=document.createElement('button');
-              equipBtn.textContent='Equip';
-              equipBtn.disabled=!canEquipItem(id).ok;
-              equipBtn.onclick=()=>equipRewardItem('missionReward',id);
-              actions.appendChild(equipBtn);
-            }
-            const scrapBtn=document.createElement('button');
-            scrapBtn.textContent=`Scrap ${salvageValue(id)}`;
-            scrapBtn.onclick=()=>scrapRewardItem('missionReward',id);
-            actions.appendChild(scrapBtn);
-            const leaveBtn=document.createElement('button');
-            leaveBtn.textContent='Leave';
-            leaveBtn.onclick=()=>leaveRewardItem('missionReward',id);
-            actions.appendChild(leaveBtn);
-            wrap.appendChild(actions);
-            dom.missionRewardList.appendChild(wrap);
+            grid.appendChild(buildRewardTile({id,count,data,source:'missionReward'}));
           });
+          dom.missionRewardList.appendChild(grid);
         }else if(state.mission.completed){
+          if(dom.missionRewardHint) dom.missionRewardHint.textContent='Rewards resolved.';
           const empty=document.createElement('div');
           empty.className='muted-box';
           empty.textContent=state.mission.success ? 'No rewards remaining. Mission will close automatically.' : 'Mission failed. Mission will close automatically.';
