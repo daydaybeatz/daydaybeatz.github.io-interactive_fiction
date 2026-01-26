@@ -2790,6 +2790,8 @@
         : `Mission failed: ${pending.label}.`;
       state.mission.pendingResolution=null;
       setCodex(outcome==='success' ? 'Mission complete. Rewards ready to review.' : 'Mission failed. Recover and try again.');
+      setActiveTab('hub');
+      state.screen='mission';
       state.selected={source:null,item:null};
       renderAll();
     }
@@ -3141,6 +3143,8 @@
           return;
         }
         setCodex(result.success ? 'Combat resolved. Rewards ready to review.' : 'Combat resolved. Regroup before redeploying.');
+        setActiveTab('hub');
+        state.screen='mission';
         renderAll();
         return;
       }
