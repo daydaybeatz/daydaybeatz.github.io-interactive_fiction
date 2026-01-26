@@ -378,6 +378,12 @@
       merged.travel={...base.travel,...(saved.travel||{})};
       merged.mission={...base.mission,...(saved.mission||{})};
       merged.selected={...base.selected,...(saved.selected||{})};
+      const travelEndsAt=Number(merged.travel.endsAt);
+      merged.travel.endsAt=Number.isFinite(travelEndsAt) ? travelEndsAt : null;
+      const missionStartedAt=Number(merged.mission.startedAt);
+      const missionEndsAt=Number(merged.mission.endsAt);
+      merged.mission.startedAt=Number.isFinite(missionStartedAt) ? missionStartedAt : null;
+      merged.mission.endsAt=Number.isFinite(missionEndsAt) ? missionEndsAt : null;
       return merged;
     };
     const loadSavedState=()=>{
@@ -3427,9 +3433,15 @@
     function normalizeMissionTiming(now){
       if(!state.mission.active || state.mission.completed) return;
       const startedAt=Number.isFinite(state.mission.startedAt) ? state.mission.startedAt : now;
-      if(!Number.isFinite(state.mission.endsAt)){
+      const fallbackDuration=computeMissionDurationMs({
+        risk:state.mission.raid?.risk,
+        time:state.mission.raid?.time,
+        loot:state.mission.raid?.loot
+      });
+      const durationMs=Number.isFinite(fallbackDuration) ? fallbackDuration : (MIN_MISSION_SECONDS*1000);
+      if(!Number.isFinite(state.mission.endsAt) || state.mission.endsAt<=startedAt){
         state.mission.startedAt=startedAt;
-        state.mission.endsAt=now+(MIN_MISSION_SECONDS*1000);
+        state.mission.endsAt=startedAt+durationMs;
       }
       const maxDuration=MAX_MISSION_SECONDS*1000*MISSION_OVERRUN_MULTIPLIER;
       if(now-startedAt>maxDuration){
