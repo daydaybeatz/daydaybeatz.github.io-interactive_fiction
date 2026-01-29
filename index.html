@@ -573,6 +573,254 @@
       {id:'forest',name:'Blackwood Expanse',file:'expansions/forest.txt'},
       {id:'portland_slums',name:'Downtown Portland',file:'expansions/portland_slums.txt'}
     ];
+    const EMBEDDED_EXPANSIONS={
+      town:`@expansion
+id:town
+name:Iron Ward
+summary:A fortified market built from welded plate and blackout tarps. Traders exchange ammunition, medical scraps, and coordinates spoken like confessions.
+
+@door
+label:Iron Ward Gate
+hint:trade, rumors, quick morale fixes
+note:The guard logs your name without looking up. The ledger is thicker than the walls.
+target:market-square
+
+@scene market-square
+title:Market Square
+desc:Generators cough under strings of dead bulbs. A crooked clock tower keeps the wrong time to confuse snipers and thieves.
+tags:Safe / Trade
+option:Check the scrap kiosk => kiosk | risk:low | time:8 | success:credits+15,item:patch-kit,log:You pull usable salvage from a dead shelf. | fail:morale-4,log:The broker bleeds you on price.
+option:Visit the medic => medic | risk:low | time:6 | success:hp+8,credits-10,log:The medic patches you in silence. | fail:credits-5,log:Triage costs more than promised.
+option:Listen for rumors => rumor-board | risk:medium | time:10 | success:note:Rumor: a supply convoy stalled near the old subway cut.,flag:convoy-hook,log:A smuggler sells you a whisper. | fail:morale-3,log:All you hear are recycled lies.
+
+@scene kiosk
+title:Scrap Kiosk
+desc:Circuit boards, shell casings, and stripped wiring are sorted into neat, desperate piles. A ceiling fan rattles like loose teeth.
+tags:Trade
+option:Sell copper wiring => market-square | risk:low | time:5 | success:credits+20,log:The kiosk pays in chipped credits. | fail:credits+5,log:They dock you for corrosion.
+option:Browse exo-suit junk => market-square | risk:medium | time:7 | success:item:exo brace,item:tarpaulin roll,temp+1,log:A brace and bundled tarp still hold tension. | fail:morale-2,log:Everything else has already failed someone.
+
+@scene medic
+title:Patchwork Clinic
+desc:A canvas clinic reeks of antiseptic and ozone. Instruments are clean. The medic's hands are steadier than her eyes.
+tags:Healing
+option:Pay for a proper checkup => market-square | risk:low | time:8 | success:hp+15,morale+4,credits-25,log:Fresh bandages and a measured dose bring you back. | fail:credits-10,morale-2,log:You walk out lighter in wallet, not in pain.
+option:Buy painkillers => market-square | risk:medium | time:4 | success:item:painkillers,item:iron ward seals,credits-12,log:The meds and stamped seals vanish into your pack. | fail:credits-5,log:The batch is cut and crumbles.
+
+@scene rumor-board
+title:Rumor Board
+desc:Paper scraps, maps, and last-known locations are pinned beneath knife blades. A faded stencil reads "NO ONE COMES BACK CLEAN."
+tags:Intel
+option:Study a convoy map => market-square | risk:low | time:6 | success:note:You mark a convoy route running the canyon edge.,item:ledger-etched compass,log:The broker scratches bearings into a compass face. | fail:morale-2
+option:Trade gossip for cash => market-square | risk:medium | time:5 | success:credits+12,morale+2,item:clocktower chime,log:A trader tosses you a chime from the old tower. | fail:credits+2,morale-2,log:Your intel buys you pity, not profit.
+
+@quest
+id:rusttown-crown
+title:Recover the Iron Crown
+desc:Find the clock tower's sealed coffer and reclaim the ceremonial helm before it is melted down for scrap.
+risk:high
+time:12
+success:item:iron crown,item:market shock knife,credits+20,morale+4
+fail:hp-8,morale-4
+flag:rusttown-crown
+once:true`,
+      safehouse:`@expansion
+id:safehouse
+name:Cold Shelter
+summary:A sealed bunker kept alive by rain barrels and a failing lantern. Survivors come here to stabilize wounds, ration supplies, and plan routes that might keep them breathing.
+
+@door
+label:Cold Shelter Hatch
+hint:rest, storage, shops
+target:commons
+
+@scene commons
+title:Cold Shelter Commons
+desc:Storage lockers line the concrete walls beside a tiny counter of trade goods. The air is warm and still, safe enough to breathe.
+tags:Safe / Storage / Trade
+option:Rest for a half hour => commons | risk:low | time:30 | success:hp+8,stamina+12,morale+4,hunger-6,thirst-8,log:You grab a guarded half hour of rest. | fail:hp+4,stamina+6
+option:Browse storage and shops => commons | risk:low | time:6 | success:item:lantern oil,item:thermal wrap,log:The lockers yield a few essentials. | fail:morale-1`,
+      forest:`@expansion
+id:forest
+name:Blackwood Expanse
+summary:A drowned canopy smothers sound while broken exo-suits rot where they fell. A derailed supply train still leaks reactor heat into the mud.
+
+@door
+label:Blackwood Trailhead
+hint:scouting, salvage, high radiation pockets
+note:Static gathers into a low chant as you cross the treeline.
+target:trail-edge
+
+@scene trail-edge
+title:Trail Edge
+desc:Fresh hazard tape flutters on old stakes while rusted lanterns stare blind. Shapes move between wet trunks and never step into the light.
+tags:Recon / Low Cover
+option:Scout the treeline => clearing | risk:medium | time:12 | success:credits+20,stamina-6,log:You flag a path through the rot.,note:Clearing marked on your map. | fail:hp-8,rads+1,log:Thorns tear through sleeves and skin.
+option:Follow the radio ping => rail-wreck | risk:high | time:16 | success:flag:train-signal,log:The ping steadies like a buried heartbeat.,stamina-8 | fail:hp-12,rads+2,log:Something massive shifts in the dark.
+option:Forage for herbs => trail-edge | risk:low | time:10 | success:item:glowing herbs,item:rad moss poultice,log:You harvest bioluminescent herbs and pack moss into a poultice.,hunger-4 | fail:hp-4,log:A glass shard opens your palm.
+
+@scene clearing
+title:Shadowed Clearing
+desc:Broken stone pillars ring a shallow pool that mirrors your visor in bands of static. The air tastes metallic and wrong.
+tags:Staging
+option:Deploy a signal flare => clearing | risk:medium | time:8 | success:temp+2,flag:flare-up,log:The flare stains the canopy with emergency red. | fail:temp+1,log:The flare sputters but refuses to die.
+option:Inspect old camp => cache | risk:low | time:7 | success:item:coil battery,item:spore lantern,log:You recover a battery and a lantern humming with spores.,morale+2 | fail:morale-2,log:Only gnawed bone and stripped metal remain.
+option:Approach strange monolith => monolith | risk:high | time:14 | success:note:Coordinates etched into the stone point to a buried hatch.,credits+10,log:You copy the markings with shaking hands. | fail:morale-6,rads+3,log:Nausea drops you to your knees.
+option:Circle back => trail-edge | risk:low | time:6 | success:stamina+4 | fail:stamina+2
+
+@scene rail-wreck
+title:Derailed Freight
+desc:An overturned freight car lies split open, its guts steaming into the rain. Warning sigils are stenciled over older, scratched-out names.
+tags:Loot / Hazard
+option:Extract reactor shard => rail-wreck | risk:deadly | time:18 | rad:3 | success:item:reactor shard,item:feral talon,credits+35,log:You lift a hot shard and pry a talon from the wreckage.,note:Shards hum louder near water. | fail:hp-18,rads+4,log:Heat bleeds through your gloves.
+option:Search for rations => clearing | risk:medium | time:10 | success:item:military rations,hunger-6,log:You find sealed packs buried under ash. | fail:hunger+8,log:Rats got here first.
+option:Listen in the dark => clearing | risk:low | time:6 | success:note:A two-tone beacon repeats 07-19-07 through the static.,morale+3 | fail:morale-3,log:The wreck answers only with buzzing.
+option:Cut open the cab => cache | risk:medium | time:9 | success:credits+15,item:spare filter,item:monsoon canteen,log:Filters and a monsoon canteen sealed in foil fall into your hands. | fail:hp-6,log:A jagged seam slices deep.
+
+@scene cache
+title:Forgotten Cache
+desc:Ripped duffels, empty syringes, and a half-drained lantern mark a campsite abandoned in a hurry. Footprints circle it like a warning.
+tags:Salvage / Intel
+option:Patch your suit => clearing | risk:low | time:8 | success:stamina+10,temp+1,item:hardened bark plate,log:Seals bite down tight and you lash on bark plating. | fail:stamina-4,log:You overtighten and crack a clasp.
+option:Disarm tripwire => trail-edge | risk:high | time:10 | success:item:copper wire,credits+8,log:You coil the wire without setting it off. | fail:hp-10,log:The trap snaps and blood runs hot.
+option:Follow muddy tracks => monolith | risk:medium | time:11 | success:flag:forest-tracks,log:The tracks sink toward the monolith. | fail:morale-3,log:The rain erases every sign.
+
+@scene monolith
+title:Obsidian Monolith
+desc:A human-height stone hums beneath your palm. Fresh paint across it reads "RUN" but the letters have already started to drip.
+tags:Weird / Lore
+option:Touch the glyphs => monolith | risk:high | time:9 | success:morale+4,flag:forest-glyph,log:The symbols burn into memory like a brand. | fail:morale-6,hp-6,log:Pressure spikes behind your eyes.
+option:Tune the beacon => clearing | risk:medium | time:8 | success:note:Beacon harmonics stored for later.,credits+12,log:You capture the pattern before it slips away. | fail:temp-1,log:Feedback screams through your headset.
+option:Back away quietly => clearing | risk:low | time:4 | success:stamina+3,temp+1 | fail:stamina+1
+
+@quest
+id:forest-heart
+title:Harvest the Monolith Heart
+desc:Trace the etched coordinates to a buried hatch and recover the humming core before the forest seals over it forever.
+risk:high
+time:14
+success:item:monolith sigil,credits+22,morale+4
+fail:hp-10,rads+3,morale-3
+flag:forest-heart
+once:true`,
+      portland_slums:`@expansion
+id:portland_slums
+name:Downtown Portland
+summary:A drowned district of cracked towers and barricaded streets. Factions fight over filtration rigs, signal relays, and the last workable routes through the ruins.
+
+@door
+label:Downtown Checkpoint
+hint:trade, factions, lethal streets
+note:A militia guard scans your pack, then marks your wrist with ash. "Don't get lost," he says. It sounds like a sentence.
+target:burnside-hub
+
+@scene burnside-hub
+title:Burnside Hub
+desc:Welded streetcars form a hard perimeter around a barter yard lit by burn barrels. Names of the dead are carved into every panel.
+tags:Safe / Trade / Hub
+option:Consult the route broker => route-broker | risk:low | time:6 | success:note:The broker marks a maintenance tunnel that bypasses a kill zone.,log:You buy directions scratched into tin. | fail:morale-2,log:The broker sells you nothing but smoke.
+option:Eat at the ration line => ration-line | risk:low | time:5 | success:hunger-8,credits-10,log:Thin stew settles your hands.,note:The cook mutters about a vanished patrol. | fail:credits-5,hunger-2,log:The pot runs dry halfway through.
+option:Parley with the federal patrol => patrol-van | risk:medium | time:7 | success:flag:patrol-contact,log:You trade scavenged intel for a temporary pass.,morale+2 | fail:temp-2,log:They record your face and send you away.
+option:Hire a tunnel runner => tunnel-runner | risk:medium | time:8 | success:item:sealed boots,item:bridge-runner pack,credits-20,log:The runner outfits you for flooded routes and straps on a bridge-runner pack.,note:She warns of a preacher rally under the bridge. | fail:credits-10,log:The runner ghosts you before the deal closes.
+
+@scene route-broker
+title:Route Broker
+desc:A scarred cartographer works beneath a tarp of stitched hazard suits. Maps are etched into metal sheets so the rain cannot erase them.
+tags:Intel
+option:Trade salvage for a grid map => burnside-hub | risk:low | time:6 | success:item:underground map,credits-15,log:The map shows storm drains and sealed doors.,note:A maintenance shaft near the river is circled twice. | fail:credits-7,log:The sheet is outdated and missing half its marks.
+option:Swap rumors for leverage => burnside-hub | risk:medium | time:5 | success:morale+3,log:Your story buys you a cleaner route. | fail:morale-3,log:Your rumor is already old news.
+
+@scene ration-line
+title:Ration Line
+desc:Citizens queue in silence while a filtration rig coughs behind sandbags. Armed volunteers watch for cutters with the patience of snipers.
+tags:Rest / Intel
+option:Ask about the vanished patrol => patrol-hunt | risk:medium | time:9 | success:flag:patrol-lead,log:A veteran points you toward Riot Alley.,morale+2 | fail:temp-1,log:No one wants to speak on record.
+option:Donate a can to the pot => burnside-hub | risk:low | time:3 | success:credits-5,stamina+4,log:The cook nods once and fills your bowl. | fail:credits-2,log:The can slips from your hands into the mud.
+
+@scene patrol-van
+title:Federal Patrol Van
+desc:A black van idles beside a barricade of jersey walls. Officers monitor drone feeds and mark targets on laminated sheets.
+tags:Intel / Risky
+option:Present forged clearance => protest-camp | risk:medium | time:7 | success:temp+2,log:They wave you toward the bridge camp with a warning. | fail:temp-3,log:They hold you at gunpoint while they check the code.
+option:Plant a relay tap => burnside-hub | risk:high | time:10 | success:item:signal tap,item:signal flare rack,flag:van-tapped,log:You splice into their relay and snap on a flare rack before anyone looks up.,temp-1 | fail:hp-8,log:A baton cracks across your knuckles.
+
+@scene tunnel-runner
+title:Tunnel Runner
+desc:A courier in patched waders studies the storm drains like scripture. Her crew measures risk in bodies, not minutes.
+tags:Trade / Lore
+option:Buy a flood route => trolley-bridge | risk:medium | time:5 | success:note:A submerged rail line leads to the trolley bridge span.,log:She traces the path on your glove with chalk. | fail:morale-2,log:She refuses the job after seeing your gear.
+option:Commission a supply pull => burnside-hub | risk:medium | time:6 | success:item:water filters,credits-18,log:Her crew brings back filters sealed in wax.,morale+1 | fail:credits-9,log:The crew returns empty and angry.
+
+@scene protest-camp
+title:Bridge Camp
+desc:Tents cluster beneath the overpass, shielded by murals and sheet metal. The camp is organized like an army that ran out of uniforms.
+tags:Quests / Combat
+option:Meet the camp marshal => camp-briefing | risk:low | time:6 | success:flag:camp-ally,log:The marshal outlines a plan to seize a drone yard. | fail:morale-3,log:They search you twice and send you away.
+option:Separate a knife fight => protest-camp | risk:medium | time:8 | success:morale+5,log:You end it fast and earn wary respect.,note:The camp owes you a favor. | fail:hp-6,log:A blade scores your ribs before order returns.
+option:Intercept infiltrators => alley-ambush | risk:high | time:12 | success:credits+30,item:riot shield,log:You catch saboteurs planting charges.,temp+1 | fail:hp-12,log:The blast throws you into a wall.
+
+@scene camp-briefing
+title:Camp Briefing
+desc:The marshal sketches drone routes across a scavenged steel door. Every arrow ends at the same word: SURVIVE.
+tags:Quest
+option:Accept the drone yard raid => drone-yard | risk:medium | time:10 | success:flag:drone-job,log:You join the strike team at dusk.,item:flare paint | fail:morale-2,log:Hesitation costs you their trust.
+option:Demand payment up front => protest-camp | risk:medium | time:5 | success:credits+15,log:The camp scrapes together a down payment. | fail:temp-1,log:The marshal remembers your greed.
+
+@scene alley-ambush
+title:Riot Alley
+desc:Charred walls narrow into a choke point littered with casings. Speakers blare old siren tones to keep everyone on edge.
+tags:Combat / Hazard
+option:Push through the choke point => alley-ambush | risk:high | time:10 | success:hp-4,credits+25,item:flashbang,log:You break the ambush and strip the fallen. | fail:hp-14,log:Rifle fire chews the concrete around you.
+option:Deploy suppression foam => protest-camp | risk:medium | time:8 | success:item:foam canister,item:riot-line tape,temp+2,log:The foam blinds shooters long enough to retreat and you strip riot tape from the barricade. | fail:item:foam canister,log:The nozzle clogs and you eat smoke.
+
+@scene patrol-hunt
+title:Patrol Hunt
+desc:A cracked HUD beacon pulses from a shuttered storefront. The street is too quiet, like the city is holding its breath.
+tags:Quest / Search
+option:Track the beacon => patrol-safehouse | risk:medium | time:9 | success:flag:found-patrol,log:You locate survivors barricaded in a signal loft.,morale+3 | fail:morale-3,log:The beacon was a lure wired to nothing.
+option:Question the sentries => burnside-hub | risk:low | time:6 | success:note:A sentry mentions a ladder up the rail supports.,stamina+2 | fail:temp-1,log:They give you false directions on purpose.
+
+@scene patrol-safehouse
+title:Signal Loft
+desc:A gutted office tower houses a relay rig pointed at the storm. Exhausted patrol members guard it like it is the last light in the city.
+tags:Combat / Loot
+option:Evacuate the survivors => burnside-hub | risk:medium | time:7 | success:item:relay codes,item:floodgate keycard,credits+20,log:They hand over access codes and a floodgate keycard in exchange for escort.,flag:patrol-safe | fail:hp-8,log:Crossfire erupts as you move them out.
+option:Strip the relay parts => burnside-hub | risk:high | time:9 | success:item:relay coil,credits+15,log:You salvage the rig before the storm hits.,temp-1 | fail:temp-3,log:A surge arcs through your suit.
+
+@scene drone-yard
+title:Drone Yard Raid
+desc:Delivery drones sit in ranks behind razor wire and floodlights. The yard smells of ozone and burned insulation.
+tags:Quest / Combat / Loot
+option:Flash the stolen badge => drone-yard | risk:medium | time:8 | success:temp+3,log:The spoofed badge keeps the turrets asleep.,item:payload crate | fail:temp-3,log:Sirens howl and searchlights lock onto you.
+option:Mark a drone with flare paint => river-cache | risk:medium | time:10 | success:flag:drone-repainted,log:The marked drone reroutes toward the river cache.,morale+2 | fail:hp-6,log:Paint fumes and panic slow your hands.
+option:Hold the line against security => drone-yard | risk:high | time:12 | success:item:stun baton,item:arc pistol,credits+35,log:You scrap a guard bot, loot its core, and pry loose an arc pistol.,temp-1 | fail:hp-15,log:Shock rounds drop you to one knee.
+
+@scene river-cache
+title:River Cache
+desc:Floating pallets are chained into a hidden dock beneath the bridge. Traders speak in code while lookouts track every silhouette on the water.
+tags:Loot / Lore / Trade
+option:Buy the rerouted payload => burnside-hub | risk:medium | time:7 | success:item:mystery supply,credits-20,log:You secure a sealed crate stamped with hazard tape. | fail:credits-8,log:The crate is already stripped clean.
+option:Share names of the fallen => burnside-hub | risk:low | time:6 | success:morale+6,log:Your list is added to the dock ledger with respect. | fail:morale-2,log:No one recognizes the names you carry.
+option:Defend the dock from raiders => river-cache | risk:high | time:11 | success:credits+30,item:salvaged tech,log:You repel the raid and earn a hard cut. | fail:hp-12,log:Raiders breach the chain line and cut you down.
+
+@scene trolley-bridge
+title:Trolley Bridge Span
+desc:A half-collapsed bridge crosses a black river choked with debris. Wind claws at the cables hard enough to sing.
+tags:Traversal / Hazard
+option:Sprint the exposed span => burnside-hub | risk:medium | time:5 | success:stamina+6,log:You clear the gap before the gusts shift. | fail:hp-8,log:A slip sends you skidding across rust and glass.
+option:Cross slow with a tether => burnside-hub | risk:low | time:6 | success:temp+1,stamina+3,log:The tether holds and your breathing steadies. | fail:stamina+1,log:The line snags and costs you precious time.
+
+@quest
+id:slums-broadcast
+title:Seize the Riot Broadcast
+desc:Infiltrate the signal loft and push the camp's warning across the grid before federal jammers silence it.
+risk:high
+time:12
+success:item:riot marshal jacket,credits+25,morale+5
+fail:hp-10,morale-5
+flag:slums-broadcast
+once:true`
+    };
     let expansionsExpected=0;
     let expansionsLoaded=0;
     let expansionsAttempted=0;
@@ -3319,6 +3567,7 @@
     }
 
     async function loadExpansion(meta){
+      const embedded=EMBEDDED_EXPANSIONS[meta.id];
       try{
         const res=await fetch(meta.file,{cache:'no-store'});
         if(!res.ok){
@@ -3334,8 +3583,19 @@
         dom.doorsHint.textContent='';
         logMsg(`Door bolted on: ${expansion.meta.name}`);
       }catch(err){
-        logMsg(`Failed to load ${meta.id}`);
-        console.error(err);
+        if(embedded){
+          const expansion=parseExpansion(embedded);
+          expansion.meta.id=meta.id || expansion.meta.id;
+          expansion.meta.name=meta.name || expansion.meta.name || meta.id;
+          expansions[expansion.meta.id]=expansion;
+          addDoor(expansion);
+          expansionsLoaded+=1;
+          dom.doorsHint.textContent='';
+          logMsg(`Door bolted on: ${expansion.meta.name}`);
+        }else{
+          logMsg(`Failed to load ${meta.id}`);
+          console.error(err);
+        }
       }finally{
         expansionsAttempted+=1;
         if(expansionsLoaded===0 && expansionsAttempted>=expansionsExpected){
