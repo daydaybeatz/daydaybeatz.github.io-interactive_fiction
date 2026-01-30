@@ -2,22 +2,22 @@
   "expansions": [
     {
       "id": "town",
-      "name": "Shatterline Front",
+      "name": "Titan Mart Megastore",
       "file": "expansions/town.txt"
     },
     {
       "id": "safehouse",
-      "name": "Horizon Shelter",
+      "name": "Harbor Barter Shelter",
       "file": "expansions/safehouse.txt"
     },
     {
       "id": "forest",
-      "name": "Glimmerwell Clinic",
+      "name": "Blacksite Service Annex",
       "file": "expansions/forest.txt"
     },
     {
       "id": "portland_slums",
-      "name": "Grainfall Depot",
+      "name": "Rubbletide Shanty Row",
       "file": "expansions/portland_slums.txt"
     }
   ]

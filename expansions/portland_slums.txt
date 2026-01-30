@@ -1,26 +1,26 @@
 @expansion
 id:portland_slums
-name:Grainfall Depot
-summary:A flooded granary district with toppled silos and drowned loading docks. Grain dust clings to everything.
+name:Rubbletide Shanty Row
+summary:A dangerous shanty sprawl of tarp roofs, rope bridges, and rusted containers hanging over dark water.
 shop:true
 
 @door
-label:Grainfall Access
-hint:food runs, random cache pulls
-note:You step onto slick concrete as the smell of wet grain rises.
-target:silo-yard
+label:Rubbletide Access
+hint:shanty caches, risky barter runs
+note:You step onto a wobbling plank bridge as the shanty fires crackle below.
+target:tarp-lane
 
-@scene silo-yard
-title:Silo Yard
-desc:Water laps at the base of broken silos. Carts and pallets float like tombstones.
-tags:Food / Flooded
-option:Patch a floating pallet => silo-yard | risk:medium | time:6 | reward:food salvage | success:item:field rations,flag:grain-pallet,log:You lash down a crate of edible packs. | fail:hunger+6,log:The pallet slips away.
-option:Follow the grain trail => silo-yard | risk:high | time:8 | reward:cache clue | success:item:ember ration,flag:grain-trail,log:A trail of grain leads to a sealed cache. | fail:hp-5,log:The slick walkway drops out beneath you.
+@scene tarp-lane
+title:Tarp Lane
+desc:Tarp roofs sag under rainwater. Rope bridges sway between stacked containers.
+tags:Shanty / Dangerous
+option:Patch a rope bridge => tarp-lane | risk:medium | time:6 | reward:route salvage | success:item:field rations,flag:grain-pallet,log:You lash down a crate of edible packs. | fail:hunger+6,log:The bridge lurches under your weight.
+option:Follow the smoke trail => tarp-lane | risk:high | time:8 | reward:cache clue | success:item:ember ration,flag:grain-trail,log:A trail of cooking smoke leads to a sealed cache. | fail:hp-5,log:A plank snaps and drops you hard.
 
 @mission
 id:random-run
-label:Dangerous random loot run
-desc:Navigate the drowned alleys for whatever the tide left.
+label:Dangerous shanty loot run
+desc:Navigate the shanty alleys for whatever the tides left.
 risk:high
 time:12
 energy:16
@@ -29,24 +29,24 @@ lootType:mixed salvage
 
 @mission
 id:food-run
-label:Dangerous food item run
-desc:Break into the intact silo for preserved rations.
+label:Dangerous barter run
+desc:Cut through the shanty market for preserved rations.
 risk:high
 time:10
 energy:15
 loot:3
-lootType:food stores
+lootType:barter stores
 
 @quest
 id:grain-silo
-title:Crack the main silo
-desc:Open the central silo hatch before the waterline rises.
+title:Crack the lockbox shanty
+desc:Open the locked container before the gang returns.
 risk:high
 time:13
 energy:18
 loot:4
-lootType:food stores
-reward:silo reserves
+lootType:barter stores
+reward:lockbox haul
 success:item:field rations,item:water canister,credits+18,flag:grain-silo
 fail:hp-8,hunger+8
 flag:grain-silo
@@ -54,8 +54,8 @@ once:true
 
 @quest
 id:grain-barge
-title:Salvage the river barge
-desc:A barge of preserved food sits wedged under the bridge.
+title:Salvage the barge cache
+desc:A barge of preserved goods sits wedged under the bridge.
 risk:medium
 time:9
 energy:12

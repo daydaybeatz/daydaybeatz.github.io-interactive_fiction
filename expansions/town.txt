@@ -1,52 +1,52 @@
 @expansion
 id:town
-name:Shatterline Front
-summary:A blown-out warfront of collapsed bridges and cratered rail yards. Wind funnels through armor husks and buried comms relays.
+name:Titan Mart Megastore
+summary:A gutted megagrocer with dark aisles, smashed coolers, and a loading dock turned into a barter line. Shelves still hide sealed cases.
 shop:true
 
 @door
-label:Shatterline Gate
-hint:warfront salvage, heavy gear
-note:You step past a twisted barricade. Distant sirens echo through the broken spans.
-target:forward-camp
+label:Titan Mart Loading Dock
+hint:food stock, cold storage, bulk salvage
+note:You squeeze past tipped shopping carts and into the cold shadow of the loading dock.
+target:loading-dock
 
-@scene forward-camp
-title:Forward Camp
-desc:Cargo pallets stack into a makeshift wall. Burn barrels keep the worst of the cold off the sentries.
-tags:Warfront / Staging
-option:Scout the crater grid => forward-camp | risk:medium | time:7 | reward:map intel | success:credits+12,flag:front-scout,log:You chart new cover routes. | fail:morale-3,log:Static hides every useful signal.
-option:Check the ammo bunker => forward-camp | risk:high | time:6 | reward:ammo cache | success:item:pipe rifle,item:riot-line tape,flag:front-bunker,log:A sealed crate still holds a serviceable rifle. | fail:hp-6,log:A loose beam crashes behind you.
+@scene loading-dock
+title:Loading Dock
+desc:Pallets of shrink-wrapped goods are split open and tagged for barter. The air smells like old flour and ozone.
+tags:Grocer / Trade
+option:Check the freezer aisle => loading-dock | risk:medium | time:7 | reward:cold stock | success:item:field rations,item:water canister,flag:titan-freezer,log:You pry a sealed crate of emergency meals from the ice. | fail:temp-2,log:The coolant burns your fingers.
+option:Crack the manager cage => loading-dock | risk:high | time:6 | reward:security cache | success:item:riot-line tape,item:pipe rifle,flag:titan-cage,log:A lockbox still holds a serviceable rifle and straps. | fail:hp-6,log:The cage door slams on your shoulder.
 
 @mission
 id:scavenger-run
-label:Scavenger loot run
-desc:Quick sweep across the busted trenches for leftover gear.
+label:Grocer stock run
+desc:Quick sweep across the aisles for sealed stock.
 risk:medium
 time:9
 energy:12
 loot:2
-lootType:scavenged gear
+lootType:sealed stock
 
 @mission
 id:equipment-run-2
-label:Dangerous equipment loot run II
-desc:Deep push into the collapsed armory for intact kit.
+label:Dangerous stockroom loot run
+desc:Push into the locked stockroom for intact kits and tools.
 risk:high
 time:14
 energy:18
 loot:3
-lootType:equipment crates
+lootType:bulk supplies
 
 @quest
 id:frontline-relay
-title:Recover the trench relay
-desc:Extract the comms relay buried beneath the east trench so the shelter can listen again.
+title:Recover the shipment manifest
+desc:Locate the master manifest kiosk so the shelter can track remaining stock.
 risk:high
 time:12
 energy:16
 loot:3
-lootType:equipment cache
-reward:relay salvage
+lootType:stock ledger
+reward:manifest recovery
 success:item:signal flare rack,item:riot shield,credits+18,flag:frontline-relay
 fail:hp-10,morale-4
 flag:frontline-relay
@@ -54,14 +54,14 @@ once:true
 
 @quest
 id:frontline-medic
-title:Escort the wounded spotter
-desc:Carry a shell-shocked spotter back across the shattered deck plates.
+title:Escort the barter runner
+desc:Keep a runner alive long enough to haul an overloaded cart back to safety.
 risk:medium
 time:10
 energy:14
 loot:2
-lootType:field kits
-reward:medical salvage
+lootType:trade kits
+reward:barter run
 success:item:bandage,item:morale patch,credits+12,flag:frontline-medic
 fail:hp-6,morale-5
 flag:frontline-medic
