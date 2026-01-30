@@ -333,7 +333,7 @@
             </div>
             <div class="command-card" id="stashCommandCard">
               <div class="command-title" id="stashCommandTitle">Vault Command Card</div>
-              <div id="stashDetail" class="command-hint">Select stash items to transfer, scrap, or sell.</div>
+              <div id="stashDetail" class="command-hint">Select stash items to transfer, break down, or sell.</div>
               <div class="action-grid" id="stashItemActions"></div>
             </div>
             <div id="stashActions" class="stack"></div>
@@ -459,12 +459,12 @@
     const ITEM_CATALOG={
       'basic backpack':{type:'armor',slot:'backpack',rarity:'common',value:6,mods:{carryBonus:6,insulation:0.1}},
       'rusty flashlight':{type:'tool',slot:'tool',rarity:'common',value:6,mods:{riskMod:-0.02}},
-      'cargo pants':{type:'armor',slot:'pants',rarity:'common',value:7,mods:{insulation:0.4}},
+      'cargo pants':{type:'armor',slot:'pants',rarity:'common',value:7,mods:{insulation:0.4},breakdown:{items:{'cloth scraps':4}}},
       'field backpack':{type:'armor',slot:'backpack',rarity:'uncommon',value:14,mods:{carryBonus:9,insulation:0.2}},
       'flare':{type:'tool',slot:'tool',rarity:'uncommon',value:10,mods:{lootBonus:0.04}},
       'patch kit':{type:'tool',slot:'tool',rarity:'uncommon',value:12,mods:{riskMod:-0.04}},
       'patch-kit':{type:'tool',slot:'tool',rarity:'uncommon',value:12,mods:{riskMod:-0.04}},
-      'utility coat':{type:'armor',slot:'chest',rarity:'uncommon',value:12,mods:{staminaBonus:1,insulation:0.8}},
+      'utility coat':{type:'armor',slot:'chest',rarity:'uncommon',value:12,mods:{staminaBonus:1,insulation:0.8},breakdown:{items:{'cloth scraps':6}}},
       'microcell':{type:'tool',slot:'tool',rarity:'rare',value:22,mods:{idleSpeed:0.15,energyRegen:1,staminaBonus:2}},
       'rigged backpack':{type:'armor',slot:'backpack',rarity:'rare',value:24,mods:{carryBonus:12,insulation:0.3}},
       'bandage':{type:'consumable',rarity:'common',value:4,effect:'hp+8'},
@@ -479,14 +479,14 @@
       'electronics bits':{type:'junk',rarity:'common',value:3,salvage:2,stackable:true},
       'old coin':{type:'junk',rarity:'uncommon',value:6,salvage:1},
       'lockbox key':{type:'key',rarity:'rare',value:18},
-      'echo prism':{type:'junk',rarity:'rare',value:20,salvage:6},
+      'relay crystal':{type:'junk',rarity:'rare',value:20,salvage:6},
       'drone core':{type:'tool',slot:'tool',rarity:'epic',value:32,mods:{lootBonus:0.08,energyRegen:2}},
-      'relic shard':{type:'junk',rarity:'legendary',value:60,salvage:12},
-      'rust town crown':{type:'armor',slot:'helmet',rarity:'legendary',value:85,mods:{moraleBonus:4,insulation:0.6}},
-      'iron crown':{type:'armor',slot:'helmet',rarity:'legendary',value:85,mods:{moraleBonus:4,insulation:0.6}},
+      'fusion core shard':{type:'junk',rarity:'legendary',value:60,salvage:12},
+      'scrapboss helm':{type:'armor',slot:'helmet',rarity:'legendary',value:85,mods:{moraleBonus:4,insulation:0.6},breakdown:{items:{'cloth scraps':5,'scrap wiring':2}}},
+      'warlord helm':{type:'armor',slot:'helmet',rarity:'legendary',value:85,mods:{moraleBonus:4,insulation:0.6},breakdown:{items:{'cloth scraps':4,'scrap wiring':2}}},
       'safehouse warden coat':{type:'armor',slot:'chest',rarity:'legendary',value:90,mods:{staminaBonus:4,insulation:1}},
-      'forest monolith sigil':{type:'tool',slot:'tool',rarity:'legendary',value:95,mods:{lootBonus:0.12,energyRegen:2}},
-      'neon riot jacket':{type:'armor',slot:'chest',rarity:'legendary',value:88,mods:{insulation:0.9,moraleBonus:2}},
+      'facility command badge':{type:'tool',slot:'tool',rarity:'legendary',value:95,mods:{lootBonus:0.12,energyRegen:2}},
+      'riot jacket':{type:'armor',slot:'chest',rarity:'legendary',value:88,mods:{insulation:0.9,moraleBonus:2},breakdown:{items:{'cloth scraps':6,'plastic shards':2}}},
       'field rations':{type:'consumable',rarity:'common',value:5,effect:'hunger-16,stamina+4'},
       'water canister':{type:'consumable',rarity:'common',value:5,effect:'thirst-18,temp-1'},
       'painkillers':{type:'consumable',rarity:'uncommon',value:11,effect:'hp+12,morale+2'},
@@ -497,23 +497,23 @@
       'copper wire':{type:'junk',rarity:'common',value:4,salvage:3,stackable:true},
       'reactor shard':{type:'junk',rarity:'rare',value:34,salvage:10},
       'exo brace':{type:'armor',slot:'gloves',rarity:'rare',value:28,mods:{staminaBonus:4,insulation:0.4}},
-      'neon sneakers':{type:'armor',slot:'shoes',rarity:'uncommon',value:16,mods:{staminaBonus:2}},
+      'scavenger boots':{type:'armor',slot:'shoes',rarity:'uncommon',value:16,mods:{staminaBonus:2},breakdown:{items:{'cloth scraps':4,'scrap bundle':1}}},
       'underground map':{type:'tool',slot:'tool',rarity:'uncommon',value:15,mods:{riskMod:-0.05,lootBonus:0.03}},
-      'meme-drive':{type:'tool',slot:'tool',rarity:'rare',value:26,mods:{lootBonus:0.06}},
-      'holo wristband':{type:'tool',slot:'tool',rarity:'uncommon',value:14,mods:{moraleBonus:2}},
+      'data cartridge':{type:'tool',slot:'tool',rarity:'rare',value:26,mods:{lootBonus:0.06}},
+      'signal wristband':{type:'tool',slot:'tool',rarity:'uncommon',value:14,mods:{moraleBonus:2}},
       'riot shield':{type:'weapon',slot:'weapon',rarity:'rare',value:30,mods:{riskMod:-0.06,insulation:0.5}},
       'flare paint':{type:'tool',slot:'tool',rarity:'uncommon',value:13,mods:{lootBonus:0.05}},
       'flashbang':{type:'tool',slot:'tool',rarity:'rare',value:24,mods:{combatBonus:5}},
       'foam canister':{type:'tool',slot:'tool',rarity:'uncommon',value:15,mods:{combatBonus:3,riskMod:-0.02}},
       'viral clip drive':{type:'junk',rarity:'rare',value:28,salvage:7},
-      'limited hoodie':{type:'armor',slot:'chest',rarity:'rare',value:27,mods:{moraleBonus:3,insulation:0.6}},
+      'limited hoodie':{type:'armor',slot:'chest',rarity:'rare',value:27,mods:{moraleBonus:3,insulation:0.6},breakdown:{items:{'cloth scraps':5}}},
       'payload crate':{type:'junk',rarity:'uncommon',value:18,salvage:5},
       'stun baton':{type:'weapon',slot:'weapon',rarity:'rare',value:29,mods:{combatBonus:6}},
       'mystery supply':{type:'junk',rarity:'rare',value:25,salvage:6},
       'salvaged tech':{type:'junk',rarity:'rare',value:27,salvage:8},
       'shock gel':{type:'consumable',rarity:'uncommon',value:12,effect:'hp+10,temp+1'},
       'overclock chip':{type:'tool',slot:'tool',rarity:'rare',value:31,mods:{energyRegen:2,combatBonus:4}},
-      'insulated cloak':{type:'armor',slot:'chest',rarity:'rare',value:26,mods:{insulation:1.1,riskMod:-0.02}},
+      'insulated cloak':{type:'armor',slot:'chest',rarity:'rare',value:26,mods:{insulation:1.1,riskMod:-0.02},breakdown:{items:{'cloth scraps':6}}},
       'scavenger harness':{type:'armor',slot:'chest',rarity:'uncommon',value:17,mods:{staminaBonus:2}},
       'hardened canteen':{type:'consumable',rarity:'uncommon',value:9,effect:'thirst-16,stamina+3'},
       'ember ration':{type:'consumable',rarity:'common',value:6,effect:'hunger-14,temp+2'},
@@ -562,10 +562,10 @@
 
     const LOOT_BY_RARITY={
       common:['bandage','ration bar','water flask','scrap wiring','scrap bundle','wire spool','cloth scraps','plastic shards','electronics bits','rusty flashlight','cargo pants','field rations','water canister','copper wire','ember ration','morale patch','pocket pack','jury-rigged blade','iron ward seals','tarpaulin roll','lantern oil','thermal wrap','riot-line tape'],
-      uncommon:['flare','patch kit','patch-kit','old coin','spark tonic','utility coat','field backpack','coil battery','spare filter','neon sneakers','underground map','holo wristband','flare paint','foam canister','scavenger harness','hardened canteen','shock gel','salvage tote','scout daypack','scrap spear','compact medkit','filtered water pack','ledger-etched compass','clocktower chime','bunker schematics','stabilizer brace','cache latch','spore lantern','rad moss poultice','hardened bark plate','signal flare rack','bridge-runner pack'],
-      rare:['microcell','lockbox key','echo prism','rigged backpack','exo brace','reactor shard','meme-drive','riot shield','flashbang','limited hoodie','stun baton','mystery supply','salvaged tech','overclock chip','insulated cloak','signal jammer','viral clip drive','expedition frame pack','pipe rifle','market shock knife','monsoon canteen','feral talon','floodgate keycard','arc pistol'],
+      uncommon:['flare','patch kit','patch-kit','old coin','spark tonic','utility coat','field backpack','coil battery','spare filter','scavenger boots','underground map','signal wristband','flare paint','foam canister','scavenger harness','hardened canteen','shock gel','salvage tote','scout daypack','scrap spear','compact medkit','filtered water pack','ledger-etched compass','clocktower chime','bunker schematics','stabilizer brace','cache latch','spore lantern','rad moss poultice','hardened bark plate','signal flare rack','bridge-runner pack'],
+      rare:['microcell','lockbox key','relay crystal','rigged backpack','exo brace','reactor shard','data cartridge','riot shield','flashbang','limited hoodie','stun baton','mystery supply','salvaged tech','overclock chip','insulated cloak','signal jammer','viral clip drive','expedition frame pack','pipe rifle','market shock knife','monsoon canteen','feral talon','floodgate keycard','arc pistol'],
       epic:['drone core'],
-      legendary:['relic shard','rust town crown','iron crown','safehouse warden coat','forest monolith sigil','neon riot jacket']
+      legendary:['fusion core shard','scrapboss helm','warlord helm','safehouse warden coat','facility command badge','riot jacket']
     };
 
     const RAID_TEMPLATES=[
@@ -580,61 +580,61 @@
     const riskRank={low:1,medium:2,high:3,deadly:4};
     const expansions={};
     const EXPANSION_MANIFEST=[
-      {id:'town',name:'Shatterline Front',file:'expansions/town.txt'},
-      {id:'safehouse',name:'Horizon Shelter',file:'expansions/safehouse.txt'},
-      {id:'forest',name:'Glimmerwell Clinic',file:'expansions/forest.txt'},
-      {id:'portland_slums',name:'Grainfall Depot',file:'expansions/portland_slums.txt'}
+      {id:'town',name:'Titan Mart Megastore',file:'expansions/town.txt'},
+      {id:'safehouse',name:'Harbor Barter Shelter',file:'expansions/safehouse.txt'},
+      {id:'forest',name:'Blacksite Service Annex',file:'expansions/forest.txt'},
+      {id:'portland_slums',name:'Rubbletide Shanty Row',file:'expansions/portland_slums.txt'}
     ];
     const EMBEDDED_EXPANSIONS={
       town:`@expansion
 id:town
-name:Shatterline Front
-summary:A blown-out warfront of collapsed bridges and cratered rail yards. Wind funnels through armor husks and buried comms relays.
+name:Titan Mart Megastore
+summary:A gutted megagrocer with dark aisles, smashed coolers, and a loading dock turned into a barter line. Shelves still hide sealed cases.
 shop:true
 
 @door
-label:Shatterline Gate
-hint:warfront salvage, heavy gear
-note:You step past a twisted barricade. Distant sirens echo through the broken spans.
-target:forward-camp
+label:Titan Mart Loading Dock
+hint:food stock, cold storage, bulk salvage
+note:You squeeze past tipped shopping carts and into the cold shadow of the loading dock.
+target:loading-dock
 
-@scene forward-camp
-title:Forward Camp
-desc:Cargo pallets stack into a makeshift wall. Burn barrels keep the worst of the cold off the sentries.
-tags:Warfront / Staging
-option:Scout the crater grid => forward-camp | risk:medium | time:7 | reward:map intel | success:credits+12,flag:front-scout,log:You chart new cover routes. | fail:morale-3,log:Static hides every useful signal.
-option:Check the ammo bunker => forward-camp | risk:high | time:6 | reward:ammo cache | success:item:pipe rifle,item:riot-line tape,flag:front-bunker,log:A sealed crate still holds a serviceable rifle. | fail:hp-6,log:A loose beam crashes behind you.
+@scene loading-dock
+title:Loading Dock
+desc:Pallets of shrink-wrapped goods are split open and tagged for barter. The air smells like old flour and ozone.
+tags:Grocer / Trade
+option:Check the freezer aisle => loading-dock | risk:medium | time:7 | reward:cold stock | success:item:field rations,item:water canister,flag:titan-freezer,log:You pry a sealed crate of emergency meals from the ice. | fail:temp-2,log:The coolant burns your fingers.
+option:Crack the manager cage => loading-dock | risk:high | time:6 | reward:security cache | success:item:riot-line tape,item:pipe rifle,flag:titan-cage,log:A lockbox still holds a serviceable rifle and straps. | fail:hp-6,log:The cage door slams on your shoulder.
 
 @mission
 id:scavenger-run
-label:Scavenger loot run
-desc:Quick sweep across the busted trenches for leftover gear.
+label:Grocer stock run
+desc:Quick sweep across the aisles for sealed stock.
 risk:medium
 time:9
 energy:12
 loot:2
-lootType:scavenged gear
+lootType:sealed stock
 
 @mission
 id:equipment-run-2
-label:Dangerous equipment loot run II
-desc:Deep push into the collapsed armory for intact kit.
+label:Dangerous stockroom loot run
+desc:Push into the locked stockroom for intact kits and tools.
 risk:high
 time:14
 energy:18
 loot:3
-lootType:equipment crates
+lootType:bulk supplies
 
 @quest
 id:frontline-relay
-title:Recover the trench relay
-desc:Extract the comms relay buried beneath the east trench so the shelter can listen again.
+title:Recover the shipment manifest
+desc:Locate the master manifest kiosk so the shelter can track remaining stock.
 risk:high
 time:12
 energy:16
 loot:3
-lootType:equipment cache
-reward:relay salvage
+lootType:stock ledger
+reward:manifest recovery
 success:item:signal flare rack,item:riot shield,credits+18,flag:frontline-relay
 fail:hp-10,morale-4
 flag:frontline-relay
@@ -642,42 +642,42 @@ once:true
 
 @quest
 id:frontline-medic
-title:Escort the wounded spotter
-desc:Carry a shell-shocked spotter back across the shattered deck plates.
+title:Escort the barter runner
+desc:Keep a runner alive long enough to haul an overloaded cart back to safety.
 risk:medium
 time:10
 energy:14
 loot:2
-lootType:field kits
-reward:medical salvage
+lootType:trade kits
+reward:barter run
 success:item:bandage,item:morale patch,credits+12,flag:frontline-medic
 fail:hp-6,morale-5
 flag:frontline-medic
 once:true`,
       safehouse:`@expansion
 id:safehouse
-name:Horizon Shelter
-summary:A cliffside shelter of reinforced glass and saltcrete. Exhaust fans hum, bunks are warm, and a ration counter trades in quiet promises.
+name:Harbor Barter Shelter
+summary:A fortified shelter wedged into a river pier. Bunks, a barter counter, and a hand-painted notice wall keep the community glued together.
 shop:true
 
 @door
-label:Horizon Shelter Hatch
-hint:rest, supply shop, recovery
-note:The hatch seals behind you with a dull thud. The air smells of warm metal and soup.
+label:Harbor Shelter Gate
+hint:rest, barter, recovery
+note:The gate locks behind you. Warm light and stew steam bleed into the corridor.
 target:commons
 
 @scene commons
-title:Horizon Commons
-desc:Rows of bunks glow with heat lamps. A ration counter sits beside a wall of handwritten schedules.
-tags:Safe / Shelter
+title:Harbor Commons
+desc:Rows of bunks glow with heat lamps. A barter counter sits beside a wall of hand-scrawled schedules.
+tags:Safe / Barter
 option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+10,stamina+12,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
 option:Boil a meal at the heater => commons | risk:low | time:5 | reward:hot meal | success:hunger-18,thirst-6,temp+2,log:Steam and salt do the job. | fail:hunger-4,log:The burner sputters out.
 option:Update the shelter logbook => commons | risk:low | time:4 | reward:morale boost | success:morale+5,flag:horizon-log,log:New names go on the board. Old names come off. | fail:morale-2,log:The pen runs dry.
 
 @quest
 id:shelter-vent
-title:Seal the frost vents
-desc:Patch a cracked intake valve before the next blizzard rolls through.
+title:Seal the intake vents
+desc:Patch a cracked intake valve before the next storm rolls through.
 risk:medium
 time:8
 energy:10
@@ -692,7 +692,7 @@ once:true
 @quest
 id:shelter-reserve
 title:Audit the reserve lockers
-desc:Count and re-tag the emergency lockers in the lower hall.
+desc:Count and re-tag the emergency lockers in the lower hall before trade night.
 risk:low
 time:7
 energy:8
@@ -705,53 +705,53 @@ flag:shelter-reserve
 once:true`,
       forest:`@expansion
 id:forest
-name:Glimmerwell Clinic
-summary:A collapsed metro clinic lit by emergency red. Cabinets are sealed with bio-tags and the air tastes of antiseptic.
+name:Blacksite Service Annex
+summary:A shuttered government annex with rusted blast doors, silent terminals, and warning stripes still intact.
 shop:true
 
 @door
-label:Glimmerwell Access
-hint:medical caches, triage runs
-note:Sterile lights flicker on as you pass the quarantine tape.
-target:triage-bay
+label:Annex Checkpoint
+hint:classified caches, facility tech
+note:Warning stripes fade under your boots as the checkpoint scanners wheeze awake.
+target:control-hall
 
-@scene triage-bay
-title:Triage Bay
-desc:Cots line the tile floor. A silent monitor blinks beside a stack of sealed med cases.
-tags:Medical / Hazard
-option:Stabilize the power feed => triage-bay | risk:medium | time:8 | reward:clinic access | success:credits+10,flag:clinic-power,log:The lights hum back to steady. | fail:temp-2,log:The breaker snaps.
-option:Scan the quarantine ledger => triage-bay | risk:high | time:7 | reward:medical intel | success:item:compact medkit,flag:clinic-ledger,log:A sealed kit pops open with the correct code. | fail:hp-6,log:An alarm shrieks and then dies.
+@scene control-hall
+title:Control Hall
+desc:Desks and terminals sit frozen under dust. A backup generator hums somewhere below.
+tags:Government / Hazard
+option:Stabilize the power feed => control-hall | risk:medium | time:8 | reward:facility access | success:credits+10,flag:clinic-power,log:Control lights hum back to steady. | fail:temp-2,log:The breaker snaps.
+option:Scan the access ledger => control-hall | risk:high | time:7 | reward:classified intel | success:item:compact medkit,flag:clinic-ledger,log:A sealed drawer pops with the right code. | fail:hp-6,log:An alarm shrieks and then dies.
 
 @mission
 id:medical-run
-label:Dangerous medical loot run
-desc:Push into the sealed pharmacy wing for trauma supplies.
+label:Dangerous annex loot run
+desc:Push into the restricted wing for trauma supplies and tech.
 risk:high
 time:12
 energy:16
 loot:3
-lootType:medical crates
+lootType:classified crates
 
 @mission
 id:item-run
-label:Dangerous item loot run
-desc:Raid the isolation lockers for high-value gear.
+label:Dangerous systems loot run
+desc:Raid the sealed lockers for high-value gear.
 risk:high
 time:11
 energy:15
 loot:2
-lootType:rare items
+lootType:facility gear
 
 @quest
 id:clinic-serum
-title:Retrieve the serum capsule
-desc:A sealed vaccine capsule is still logged in the vault fridge.
+title:Retrieve the sealed payload
+desc:A sealed payload canister is still logged in the vault freezer.
 risk:high
 time:13
 energy:18
 loot:3
-lootType:medical cache
-reward:serum capsule
+lootType:facility cache
+reward:sealed payload
 success:item:filtered water pack,item:painkillers,credits+20,flag:clinic-serum
 fail:hp-8,morale-4
 flag:clinic-serum
@@ -759,41 +759,41 @@ once:true
 
 @quest
 id:clinic-evac
-title:Evacuate the med drone
-desc:Bring the intact med drone back online and escort it out.
+title:Evacuate the survey drone
+desc:Bring the intact survey drone back online and escort it out.
 risk:medium
 time:10
 energy:14
 loot:2
-lootType:clinic supplies
-reward:drone med kit
+lootType:facility supplies
+reward:drone kit
 success:item:spark tonic,item:bandage,credits+14,flag:clinic-evac
 fail:hp-6,morale-3
 flag:clinic-evac
 once:true`,
       portland_slums:`@expansion
 id:portland_slums
-name:Grainfall Depot
-summary:A flooded granary district with toppled silos and drowned loading docks. Grain dust clings to everything.
+name:Rubbletide Shanty Row
+summary:A dangerous shanty sprawl of tarp roofs, rope bridges, and rusted containers hanging over dark water.
 shop:true
 
 @door
-label:Grainfall Access
-hint:food runs, random cache pulls
-note:You step onto slick concrete as the smell of wet grain rises.
-target:silo-yard
+label:Rubbletide Access
+hint:shanty caches, risky barter runs
+note:You step onto a wobbling plank bridge as the shanty fires crackle below.
+target:tarp-lane
 
-@scene silo-yard
-title:Silo Yard
-desc:Water laps at the base of broken silos. Carts and pallets float like tombstones.
-tags:Food / Flooded
-option:Patch a floating pallet => silo-yard | risk:medium | time:6 | reward:food salvage | success:item:field rations,flag:grain-pallet,log:You lash down a crate of edible packs. | fail:hunger+6,log:The pallet slips away.
-option:Follow the grain trail => silo-yard | risk:high | time:8 | reward:cache clue | success:item:ember ration,flag:grain-trail,log:A trail of grain leads to a sealed cache. | fail:hp-5,log:The slick walkway drops out beneath you.
+@scene tarp-lane
+title:Tarp Lane
+desc:Tarp roofs sag under rainwater. Rope bridges sway between stacked containers.
+tags:Shanty / Dangerous
+option:Patch a rope bridge => tarp-lane | risk:medium | time:6 | reward:route salvage | success:item:field rations,flag:grain-pallet,log:You lash down a crate of edible packs. | fail:hunger+6,log:The bridge lurches under your weight.
+option:Follow the smoke trail => tarp-lane | risk:high | time:8 | reward:cache clue | success:item:ember ration,flag:grain-trail,log:A trail of cooking smoke leads to a sealed cache. | fail:hp-5,log:A plank snaps and drops you hard.
 
 @mission
 id:random-run
-label:Dangerous random loot run
-desc:Navigate the drowned alleys for whatever the tide left.
+label:Dangerous shanty loot run
+desc:Navigate the shanty alleys for whatever the tides left.
 risk:high
 time:12
 energy:16
@@ -802,24 +802,24 @@ lootType:mixed salvage
 
 @mission
 id:food-run
-label:Dangerous food item run
-desc:Break into the intact silo for preserved rations.
+label:Dangerous barter run
+desc:Cut through the shanty market for preserved rations.
 risk:high
 time:10
 energy:15
 loot:3
-lootType:food stores
+lootType:barter stores
 
 @quest
 id:grain-silo
-title:Crack the main silo
-desc:Open the central silo hatch before the waterline rises.
+title:Crack the lockbox shanty
+desc:Open the locked container before the gang returns.
 risk:high
 time:13
 energy:18
 loot:4
-lootType:food stores
-reward:silo reserves
+lootType:barter stores
+reward:lockbox haul
 success:item:field rations,item:water canister,credits+18,flag:grain-silo
 fail:hp-8,hunger+8
 flag:grain-silo
@@ -827,8 +827,8 @@ once:true
 
 @quest
 id:grain-barge
-title:Salvage the river barge
-desc:A barge of preserved food sits wedged under the bridge.
+title:Salvage the barge cache
+desc:A barge of preserved goods sits wedged under the bridge.
 risk:medium
 time:9
 energy:12
@@ -850,6 +850,7 @@ once:true`
     ];
 
     const IDLE_DURATION_MULTIPLIER=1;
+    const TIME_DISPLAY_MULTIPLIER=4;
     const formatMinutesPrecise=(minutes)=>minutes>=1?`${minutes.toFixed(1)} min`:`${Math.max(5,Math.round(minutes*60))}s`;
     const getIdleDurationMinutes=(op,gearMods=getGearMods())=>{
       const base=op.duration*IDLE_DURATION_MULTIPLIER;
@@ -1132,6 +1133,69 @@ once:true`
       return 'lost';
     };
     const getItem=(id)=>ITEM_CATALOG[id] || {type:'junk',rarity:'common',value:1};
+    const formatDisplayMinutes=(minutes)=>Math.max(1,Math.round(minutes*TIME_DISPLAY_MULTIPLIER));
+    const normalizeBreakdown=(breakdown)=>({
+      scrap:Math.max(0,Number(breakdown?.scrap || 0)),
+      items:{...(breakdown?.items || {})}
+    });
+    const BREAKDOWN_DEFAULTS={
+      armor:{items:{'cloth scraps':4}},
+      tool:{items:{'electronics bits':3,'plastic shards':2}},
+      weapon:{items:{'scrap wiring':3,'copper wire':2},scrap:1},
+      consumable:{items:{'scrap bundle':2,'plastic shards':1}},
+      key:{items:{'electronics bits':2,'scrap wiring':1}}
+    };
+    const getBreakdownOutputs=(item)=>{
+      const data=getItem(item);
+      if(data.breakdown){
+        return normalizeBreakdown(data.breakdown);
+      }
+      if(data.type==='junk'){
+        return {scrap:data.salvage || Math.max(1,Math.floor((data.value || 1)/2)),items:{}};
+      }
+      const fallback=BREAKDOWN_DEFAULTS[data.type];
+      if(fallback){
+        return normalizeBreakdown(fallback);
+      }
+      return {scrap:Math.max(1,Math.floor((data.value || 1)/2)),items:{'scrap bundle':1}};
+    };
+    const formatBreakdownOutput=(outputs)=>{
+      const parts=[];
+      if(outputs.scrap){
+        parts.push(`${outputs.scrap} scrap`);
+      }
+      Object.entries(outputs.items || {}).forEach(([id,count])=>{
+        if(count>0) parts.push(`${count} ${id}`);
+      });
+      return parts.join(' · ');
+    };
+    const applyBreakdownOutputs=(outputs,{preferred='inventory'}={})=>{
+      const losses=[];
+      if(outputs.scrap){
+        state.scrap+=outputs.scrap;
+      }
+      Object.entries(outputs.items || {}).forEach(([id,count])=>{
+        for(let i=0;i<count;i++){
+          const preferStash=preferred==='stash';
+          if(preferStash && canAccessVault() && hasCapacityFor(state.stash.items,state.stashLimit,id,1)){
+            state.stash.items.push(id);
+            continue;
+          }
+          if(hasCapacityFor(state.inventory,getBackpackLimit(),id,1)){
+            state.inventory.push(id);
+            continue;
+          }
+          if(canAccessVault() && hasCapacityFor(state.stash.items,state.stashLimit,id,1)){
+            state.stash.items.push(id);
+            continue;
+          }
+          losses.push(id);
+        }
+      });
+      if(losses.length){
+        logMsg(`${losses.length}x ${losses[0]} lost: no storage space available.`);
+      }
+    };
     const formatMods=(mods)=>{
       if(!mods) return [];
       return Object.entries(mods).map(([key,val])=>{
@@ -1486,13 +1550,27 @@ once:true`
       logMsg(`Sold ${item} for ${data.value || 1} credits.`);
       renderAll();
     }
-    function dismantleItem(item){
+    function sellItemStack(item,count){
+      if(!canAccessMarket()){
+        setCodex('Visit a shop to sell items.');
+        return;
+      }
+      const available=getItemCount(state.inventory,item);
+      const sellCount=Math.min(count,available);
+      if(sellCount<=0) return;
       const data=getItem(item);
-      removeItem(state.inventory,item);
-      const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
-      state.scrap+=salvage;
+      removeItems(state.inventory,item,sellCount);
+      state.credits+=(data.value || 1) * sellCount;
       state.selected={source:null,item:null};
-      logMsg(`Dismantled ${item} for ${salvage} scrap.`);
+      logMsg(`Sold ${sellCount}x ${item} for ${(data.value || 1) * sellCount} credits.`);
+      renderAll();
+    }
+    function dismantleItem(item){
+      removeItem(state.inventory,item);
+      const breakdown=getBreakdownOutputs(item);
+      applyBreakdownOutputs(breakdown,{preferred:'inventory'});
+      state.selected={source:null,item:null};
+      logMsg(`Dismantled ${item} for ${formatBreakdownOutput(breakdown) || 'junk'}.`);
       renderAll();
     }
 
@@ -1626,10 +1704,6 @@ once:true`
       if(!cfg) return false;
       return removeItems(cfg.getItems(),item,count);
     };
-    const salvageValue=(item)=>{
-      const data=getItem(item);
-      return data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
-    };
     const isMissionResolved=()=>state.mission.active && state.mission.completed && (state.mission.rewards?.length||0)===0;
     function autoCloseMissionIfResolved(){
       if(isMissionResolved()){
@@ -1664,7 +1738,7 @@ once:true`
     }
     function claimRewardToVault(source,item){
       if(source==='missionReward'){
-        setCodex('Mission rewards can only be packed, equipped, scrapped, or left behind.');
+        setCodex('Mission rewards can only be packed, equipped, broken down, or left behind.');
         return;
       }
       if(!canAccessVault()){
@@ -1672,7 +1746,7 @@ once:true`
         return;
       }
       if(!hasCapacityFor(state.stash.items,state.stashLimit,item,1)){
-        setCodex('Stash full. Sell or scrap to clear space.');
+        setCodex('Stash full. Sell or break down to clear space.');
         return;
       }
       if(!removeRewardItem(source,item)) return;
@@ -1713,10 +1787,10 @@ once:true`
     }
     function scrapRewardItem(source,item){
       if(!removeRewardItem(source,item)) return;
-      const salvage=salvageValue(item);
-      state.scrap+=salvage;
+      const breakdown=getBreakdownOutputs(item);
+      applyBreakdownOutputs(breakdown);
       state.selected={source:null,item:null};
-      setCodex(`${item} scrapped for ${salvage} scrap.`);
+      setCodex(`${item} broken down into ${formatBreakdownOutput(breakdown) || 'junk'}.`);
       autoCloseMissionIfResolved();
       renderAll();
     }
@@ -1858,7 +1932,7 @@ once:true`
           actions.appendChild(equipBtn);
         }
         const scrapBtn=document.createElement('button');
-        scrapBtn.textContent=`Scrap ${salvageValue(id)}`;
+        scrapBtn.textContent='Break down';
         scrapBtn.onclick=()=>scrapRewardItem(source,id);
         actions.appendChild(scrapBtn);
         wrap.appendChild(actions);
@@ -1931,7 +2005,7 @@ once:true`
       const marketActive=canAccessMarket();
       const stashDefault=state.stashScreen==='market'
         ? 'Select backpack items to sell or break down in the trade bay.'
-        : 'Select stash items to transfer, scrap, or sell.';
+        : 'Select stash items to transfer, break down, or sell.';
       const targets=[
         {detail:dom.itemDetail,actions:dom.itemActions,default:'Select gear to view stats, uses, and actions.'},
         {detail:dom.stashDetail,actions:dom.stashItemActions,default:stashDefault}
@@ -1944,9 +2018,11 @@ once:true`
           const mods=formatMods(data.mods);
           const effects=formatEffects(data.effect);
           const uses=[];
+          const breakdown=getBreakdownOutputs(item);
+          const breakdownLabel=formatBreakdownOutput(breakdown);
           if(data.type==='consumable') uses.push('Consume for field boost.');
           if(data.slot) uses.push('Equip to gain passive bonuses.');
-          if(data.type==='junk') uses.push('Break down for scrap.');
+          uses.push('Break down into salvage.');
           if(data.type==='key') uses.push('Unlocks lockbox raids.');
           target.detail.innerHTML=`
             <div class="command-title">${item}</div>
@@ -1955,7 +2031,7 @@ once:true`
               <div>Rarity</div><span>${data.rarity}</span>
               <div>Value</div><span>${data.value || 1} credits</span>
               ${data.slot ? `<div>Slot</div><span>${slotLabel(data.slot)}</span>` : ''}
-              ${data.salvage ? `<div>Salvage</div><span>${data.salvage} scrap</span>` : ''}
+              ${breakdownLabel ? `<div>Breakdown</div><span>${breakdownLabel}</span>` : ''}
             </div>
             ${uses.length ? `<div class="small">${uses.join(' ')}</div>` : ''}
             ${effects.length ? `<div class="small"><b>Effects:</b> ${effects.join(' · ')}</div>` : ''}
@@ -2005,9 +2081,14 @@ once:true`
             });
           }
         }
-        actionConfigs.push({label:'Break down for scrap',action:()=>dismantleItem(item)});
+        actionConfigs.push({label:'Break down into junk',action:()=>dismantleItem(item)});
         if(marketActive){
           actionConfigs.push({label:'Sell to market',action:()=>sellItem(item)});
+          if(stackable && stackCount>1){
+            const halfCount=Math.floor(stackCount/2);
+            actionConfigs.push({label:'Sell stack',action:()=>sellItemStack(item,stackCount)});
+            actionConfigs.push({label:'Sell half stack',action:()=>sellItemStack(item,halfCount),disabled:halfCount<=0});
+          }
         }
       }else if(source==='equipped'){
         actionConfigs.push({label:'Return to backpack',action:()=>unequipItem(item),disabled:!canUnequipItem(item)});
@@ -2019,7 +2100,7 @@ once:true`
           blockedHint:!vaultAccess ? vaultBlockedMessage : ''
         });
         actionConfigs.push({
-          label:'Break down for scrap',
+          label:'Break down into junk',
           action:()=>scrapStashItem(item),
           disabled:!vaultAccess,
           blockedHint:!vaultAccess ? vaultBlockedMessage : ''
@@ -2029,6 +2110,13 @@ once:true`
             label:'Sell to market',
             action:()=>sellStashItem(item)
           });
+          const stackCount=getItemCount(state.stash.items,item);
+          const stackable=isStackable(item) || data.stackable;
+          if(stackable && stackCount>1){
+            const halfCount=Math.floor(stackCount/2);
+            actionConfigs.push({label:'Sell stack',action:()=>sellStashItemStack(item,stackCount)});
+            actionConfigs.push({label:'Sell half stack',action:()=>sellStashItemStack(item,halfCount),disabled:halfCount<=0});
+          }
         }
       }
       targets.forEach(target=>{
@@ -2334,7 +2422,7 @@ once:true`
             vaultBtn.onclick=()=>claimRewardToVault('idleReward',id);
             actions.appendChild(vaultBtn);
             const scrapBtn=document.createElement('button');
-            scrapBtn.textContent=`Scrap ${salvageValue(id)}`;
+            scrapBtn.textContent='Break down';
             scrapBtn.onclick=()=>scrapRewardItem('idleReward',id);
             actions.appendChild(scrapBtn);
             const leaveBtn=document.createElement('button');
@@ -2585,7 +2673,7 @@ once:true`
     }
 
     function buildMissionMeta({risk='low',time=8,energy,key,loot=0,lootType='',reward='',xp}={}){
-      const parts=[`${risk} · ${time} min`];
+      const parts=[`${risk} · ${formatDisplayMinutes(time)} min`];
       const rewardLabel=formatRewardEstimate({loot,lootType,reward,risk,time,xp});
       if(rewardLabel) parts.push(rewardLabel);
       if(Number.isFinite(energy)){
@@ -2704,7 +2792,7 @@ once:true`
         const canCamp=state.screen==='locations' && state.zone.id!=='safehouse';
         if(canCamp){
           const rest=document.createElement('button');
-          rest.innerHTML=`<span>Make camp</span><span class="small">recover · ${ACTION_TIMES.camp} min</span>`;
+        rest.innerHTML=`<span>Make camp</span><span class="small">recover · ${formatDisplayMinutes(ACTION_TIMES.camp)} min</span>`;
           rest.onclick=runCamp;
           if(state.mission.active || state.travel.active) rest.disabled=true;
           dom.raidActions.appendChild(rest);
@@ -2775,7 +2863,7 @@ once:true`
         sceneTarget:option.target || null
       };
       setCodex(`Action launched: ${label}.`);
-      logMsg(`Local action: ${label} (${time} min).`);
+      logMsg(`Local action: ${label} (${formatDisplayMinutes(time)} min).`);
       setActiveTab('hub');
       setScreen('mission');
       normalizeMissionTiming(Date.now());
@@ -2852,7 +2940,7 @@ once:true`
         ? `Mission complete: ${raid.label}`
         : `${labelPrefix}: ${raid.label}`;
       const etaLabel=state.mission.fleeing ? 'Escaping…' : `ETA ${remainingSec}s`;
-      dom.missionMeta.textContent=`${raid.risk} risk · ${raid.time} min op · ${state.mission.location?.name || state.zone.name} · XP ${state.mission.xpReward || computeMissionXp(raid.risk,raid.time)} · ${state.mission.completed ? 'Rewards ready' : etaLabel}`;
+      dom.missionMeta.textContent=`${raid.risk} risk · ${formatDisplayMinutes(raid.time)} min op · ${state.mission.location?.name || state.zone.name} · XP ${state.mission.xpReward || computeMissionXp(raid.risk,raid.time)} · ${state.mission.completed ? 'Rewards ready' : etaLabel}`;
       const liveMessage=state.mission.statusMessage || state.mission.summary;
       dom.missionLog.textContent=liveMessage || 'Stay sharp. Watch the feed for extraction clearance.';
       dom.missionActions.innerHTML='';
@@ -3090,7 +3178,7 @@ once:true`
         sellAll.title='Visit a shop to sell.';
       }
       const scrapAll=document.createElement('button');
-      scrapAll.textContent='Scrap all stash';
+      scrapAll.textContent='Break down all stash';
       scrapAll.onclick=bulkScrapStash;
       if(!vaultAccess){
         scrapAll.disabled=true;
@@ -3117,7 +3205,7 @@ once:true`
     }
 
     function tickTime(minutes){
-      const total=state.timeMinutes+minutes;
+      const total=state.timeMinutes+formatDisplayMinutes(minutes);
       if(total>=24*60){
         state.timeMinutes=total%(24*60);
         advanceDay();
@@ -3576,7 +3664,7 @@ once:true`
         sceneTarget:null
       };
       setCodex(`Contract launched: ${raidLike.label}.`);
-      logMsg(`Contract deployed: ${raidLike.label} (${raidLike.time} min op).`);
+      logMsg(`Contract deployed: ${raidLike.label} (${formatDisplayMinutes(raidLike.time)} min op).`);
       setActiveTab('hub');
       setScreen('mission');
       normalizeMissionTiming(Date.now());
@@ -3648,7 +3736,7 @@ once:true`
         sceneTarget:null
       };
       setCodex(`Mission launched: ${raid.label}.`);
-      logMsg(`Mission launched: ${raid.label} (${raid.time} min op).`);
+      logMsg(`Mission launched: ${raid.label} (${formatDisplayMinutes(raid.time)} min op).`);
       setActiveTab('hub');
       setScreen('mission');
       normalizeMissionTiming(Date.now());
@@ -3755,16 +3843,33 @@ once:true`
       state.selected={source:null,item:null};
       renderAll();
     }
+    function sellStashItemStack(item,count){
+      if(!canAccessVault()){
+        setCodex(vaultBlockedMessage);
+        return;
+      }
+      if(!canAccessMarket()){
+        setCodex('Visit a shop to sell items.');
+        return;
+      }
+      const available=getItemCount(state.stash.items,item);
+      const sellCount=Math.min(count,available);
+      if(sellCount<=0) return;
+      const data=getItem(item);
+      removeItems(state.stash.items,item,sellCount);
+      state.credits+=(data.value || 1) * sellCount;
+      state.selected={source:null,item:null};
+      renderAll();
+    }
 
     function scrapStashItem(item){
       if(!canAccessVault()){
         setCodex(vaultBlockedMessage);
         return;
       }
-      const data=getItem(item);
       removeItem(state.stash.items,item);
-      const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
-      state.scrap+=salvage;
+      const breakdown=getBreakdownOutputs(item);
+      applyBreakdownOutputs(breakdown,{preferred:'stash'});
       state.selected={source:null,item:null};
       renderAll();
     }
@@ -3792,12 +3897,12 @@ once:true`
         setCodex(vaultBlockedMessage);
         return;
       }
-      state.stash.items.forEach(item=>{
-        const data=getItem(item);
-        const salvage=data.salvage || Math.max(1,Math.floor((data.value || 1)/2));
-        state.scrap+=salvage;
-      });
+      const itemsToScrap=[...state.stash.items];
       state.stash.items=[];
+      itemsToScrap.forEach(item=>{
+        const breakdown=getBreakdownOutputs(item);
+        applyBreakdownOutputs(breakdown,{preferred:'stash'});
+      });
       state.selected={source:null,item:null};
       renderAll();
     }

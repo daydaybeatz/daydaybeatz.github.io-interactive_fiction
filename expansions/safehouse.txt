@@ -1,27 +1,27 @@
 @expansion
 id:safehouse
-name:Horizon Shelter
-summary:A cliffside shelter of reinforced glass and saltcrete. Exhaust fans hum, bunks are warm, and a ration counter trades in quiet promises.
+name:Harbor Barter Shelter
+summary:A fortified shelter wedged into a river pier. Bunks, a barter counter, and a hand-painted notice wall keep the community glued together.
 shop:true
 
 @door
-label:Horizon Shelter Hatch
-hint:rest, supply shop, recovery
-note:The hatch seals behind you with a dull thud. The air smells of warm metal and soup.
+label:Harbor Shelter Gate
+hint:rest, barter, recovery
+note:The gate locks behind you. Warm light and stew steam bleed into the corridor.
 target:commons
 
 @scene commons
-title:Horizon Commons
-desc:Rows of bunks glow with heat lamps. A ration counter sits beside a wall of handwritten schedules.
-tags:Safe / Shelter
+title:Harbor Commons
+desc:Rows of bunks glow with heat lamps. A barter counter sits beside a wall of hand-scrawled schedules.
+tags:Safe / Barter
 option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+10,stamina+12,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
 option:Boil a meal at the heater => commons | risk:low | time:5 | reward:hot meal | success:hunger-18,thirst-6,temp+2,log:Steam and salt do the job. | fail:hunger-4,log:The burner sputters out.
 option:Update the shelter logbook => commons | risk:low | time:4 | reward:morale boost | success:morale+5,flag:horizon-log,log:New names go on the board. Old names come off. | fail:morale-2,log:The pen runs dry.
 
 @quest
 id:shelter-vent
-title:Seal the frost vents
-desc:Patch a cracked intake valve before the next blizzard rolls through.
+title:Seal the intake vents
+desc:Patch a cracked intake valve before the next storm rolls through.
 risk:medium
 time:8
 energy:10
@@ -36,7 +36,7 @@ once:true
 @quest
 id:shelter-reserve
 title:Audit the reserve lockers
-desc:Count and re-tag the emergency lockers in the lower hall.
+desc:Count and re-tag the emergency lockers in the lower hall before trade night.
 risk:low
 time:7
 energy:8

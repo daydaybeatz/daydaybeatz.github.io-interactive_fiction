@@ -1,52 +1,52 @@
 @expansion
 id:forest
-name:Glimmerwell Clinic
-summary:A collapsed metro clinic lit by emergency red. Cabinets are sealed with bio-tags and the air tastes of antiseptic.
+name:Blacksite Service Annex
+summary:A shuttered government annex with rusted blast doors, silent terminals, and warning stripes still intact.
 shop:true
 
 @door
-label:Glimmerwell Access
-hint:medical caches, triage runs
-note:Sterile lights flicker on as you pass the quarantine tape.
-target:triage-bay
+label:Annex Checkpoint
+hint:classified caches, facility tech
+note:Warning stripes fade under your boots as the checkpoint scanners wheeze awake.
+target:control-hall
 
-@scene triage-bay
-title:Triage Bay
-desc:Cots line the tile floor. A silent monitor blinks beside a stack of sealed med cases.
-tags:Medical / Hazard
-option:Stabilize the power feed => triage-bay | risk:medium | time:8 | reward:clinic access | success:credits+10,flag:clinic-power,log:The lights hum back to steady. | fail:temp-2,log:The breaker snaps.
-option:Scan the quarantine ledger => triage-bay | risk:high | time:7 | reward:medical intel | success:item:compact medkit,flag:clinic-ledger,log:A sealed kit pops open with the correct code. | fail:hp-6,log:An alarm shrieks and then dies.
+@scene control-hall
+title:Control Hall
+desc:Desks and terminals sit frozen under dust. A backup generator hums somewhere below.
+tags:Government / Hazard
+option:Stabilize the power feed => control-hall | risk:medium | time:8 | reward:facility access | success:credits+10,flag:clinic-power,log:Control lights hum back to steady. | fail:temp-2,log:The breaker snaps.
+option:Scan the access ledger => control-hall | risk:high | time:7 | reward:classified intel | success:item:compact medkit,flag:clinic-ledger,log:A sealed drawer pops with the right code. | fail:hp-6,log:An alarm shrieks and then dies.
 
 @mission
 id:medical-run
-label:Dangerous medical loot run
-desc:Push into the sealed pharmacy wing for trauma supplies.
+label:Dangerous annex loot run
+desc:Push into the restricted wing for trauma supplies and tech.
 risk:high
 time:12
 energy:16
 loot:3
-lootType:medical crates
+lootType:classified crates
 
 @mission
 id:item-run
-label:Dangerous item loot run
-desc:Raid the isolation lockers for high-value gear.
+label:Dangerous systems loot run
+desc:Raid the sealed lockers for high-value gear.
 risk:high
 time:11
 energy:15
 loot:2
-lootType:rare items
+lootType:facility gear
 
 @quest
 id:clinic-serum
-title:Retrieve the serum capsule
-desc:A sealed vaccine capsule is still logged in the vault fridge.
+title:Retrieve the sealed payload
+desc:A sealed payload canister is still logged in the vault freezer.
 risk:high
 time:13
 energy:18
 loot:3
-lootType:medical cache
-reward:serum capsule
+lootType:facility cache
+reward:sealed payload
 success:item:filtered water pack,item:painkillers,credits+20,flag:clinic-serum
 fail:hp-8,morale-4
 flag:clinic-serum
@@ -54,14 +54,14 @@ once:true
 
 @quest
 id:clinic-evac
-title:Evacuate the med drone
-desc:Bring the intact med drone back online and escort it out.
+title:Evacuate the survey drone
+desc:Bring the intact survey drone back online and escort it out.
 risk:medium
 time:10
 energy:14
 loot:2
-lootType:clinic supplies
-reward:drone med kit
+lootType:facility supplies
+reward:drone kit
 success:item:spark tonic,item:bandage,credits+14,flag:clinic-evac
 fail:hp-6,morale-3
 flag:clinic-evac
