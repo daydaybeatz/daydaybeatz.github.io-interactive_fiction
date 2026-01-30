@@ -19,6 +19,16 @@
       "id": "portland_slums",
       "name": "Grainfall Depot",
       "file": "expansions/portland_slums.txt"
+    },
+    {
+      "id": "corporate_complex",
+      "name": "Corporate Complex High Rise",
+      "file": "expansions/corporate_complex.txt"
+    },
+    {
+      "id": "metro_ganglands",
+      "name": "Metro Ganglands",
+      "file": "expansions/metro_ganglands.txt"
     }
   ]
 }

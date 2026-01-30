@@ -1,0 +1,70 @@
+@expansion
+id:corporate_complex
+name:Corporate Complex High Rise
+summary:A sealed corporate tower of mirrored glass and automated turrets. Executive vaults hum above, guarded by merc patrols and cold light.
+shop:false
+
+@door
+label:Corporate Complex Lift
+hint:level 5+ clearance, executive vaults
+note:A silent elevator waits behind a biometric door. The badge reader blinks red.
+risk:high
+minLevel:5
+target:executive-lobby
+
+@scene executive-lobby
+title:Executive Lobby
+desc:Quartz floors are cracked by blast lines. Defense drones scan the mezzanine for movement.
+tags:High rise / Combat
+option:Clear the security mezzanine => executive-lobby | risk:high | time:8 | reward:weapon cache | success:item:corporate railblade,item:platinum data cache,flag:corp-mezzanine,log:You strip a railblade off a pinned guard. | fail:hp-8,morale-4,log:Suppressing fire drives you back.
+option:Secure the med suite => executive-lobby | risk:medium | time:7 | reward:medical supplies | success:item:nanite trauma kit,item:sterile stimulants,flag:corp-med,log:The med suite still holds sealed trauma kits. | fail:hp-5,temp-2,log:A flashbang pops in the hall.
+
+@mission
+id:security-sweep
+label:High rise security sweep
+desc:Force a path through the security floors for weapon lockers.
+risk:high
+time:12
+energy:16
+loot:3
+lootType:weapon lockers
+
+@mission
+id:executive-vault
+label:Executive vault raid
+desc:Crack the penthouse vault for high-value corporate stock.
+risk:high
+time:14
+energy:18
+loot:3
+lootType:high value cache
+
+@quest
+id:corporate-arms
+title:Extract the prototype arm
+desc:A prototype coil rifle is locked in the executive armory. Get it out.
+risk:high
+time:15
+energy:20
+loot:3
+lootType:weapon cache
+reward:prototype weapon
+success:item:executive coil rifle,item:golden credit chip,credits+26,flag:corp-prototype
+fail:hp-10,morale-6
+flag:corp-prototype
+once:true
+
+@quest
+id:corporate-medbay
+title:Stabilize the rooftop medbay
+desc:Keep the rooftop medbay intact long enough to pull the last supplies.
+risk:medium
+time:11
+energy:14
+loot:2
+lootType:medical cache
+reward:medical salvage
+success:item:sterile stimulants,item:anti-rad injector,credits+14,flag:corp-medbay
+fail:hp-6,morale-4
+flag:corp-medbay
+once:true

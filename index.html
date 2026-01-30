@@ -356,6 +356,7 @@
       thirst:20,maxThirst:100,
       energy:72,maxEnergy:100,
       rads:0,
+      radGainMod:1,
       bodyTemp:98,maxBodyTemp:104,
       scrap:6,
       credits:50,
@@ -518,6 +519,27 @@
       'hardened canteen':{type:'consumable',rarity:'uncommon',value:9,effect:'thirst-16,stamina+3'},
       'ember ration':{type:'consumable',rarity:'common',value:6,effect:'hunger-14,temp+2'},
       'signal jammer':{type:'tool',slot:'tool',rarity:'rare',value:33,mods:{riskMod:-0.07,combatBonus:2}},
+      'anti-rad injector':{type:'consumable',rarity:'rare',value:28,effect:'rads-40%,radgain-25%'},
+      'sterile stimulants':{type:'consumable',rarity:'uncommon',value:18,effect:'hp+14,stamina+6'},
+      'nanite trauma kit':{type:'consumable',rarity:'rare',value:34,effect:'hp+28,morale+4'},
+      'corporate railblade':{type:'weapon',slot:'weapon',rarity:'rare',value:48,mods:{combatBonus:9,lootBonus:0.03}},
+      'executive coil rifle':{type:'weapon',slot:'weapon',rarity:'epic',value:72,mods:{combatBonus:13,energyRegen:1}},
+      'platinum data cache':{type:'junk',rarity:'epic',value:55,salvage:12},
+      'golden credit chip':{type:'junk',rarity:'legendary',value:80,salvage:14},
+      'signal tap gloves':{type:'armor',slot:'gloves',rarity:'rare',value:30,mods:{staminaBonus:3,lootBonus:0.03}},
+      'railrunner boots':{type:'armor',slot:'shoes',rarity:'rare',value:28,mods:{staminaBonus:3,riskMod:-0.02}},
+      'splicer satchel':{type:'armor',slot:'backpack',rarity:'rare',value:52,mods:{carryBonus:12,lootBonus:0.04}},
+      'uplink rig':{type:'tool',slot:'tool',rarity:'rare',value:36,mods:{lootBonus:0.06,energyRegen:1}},
+      'metro arc jacket':{type:'armor',slot:'chest',rarity:'rare',value:54,mods:{insulation:0.8,combatBonus:2}},
+      'ganglands visor':{type:'armor',slot:'helmet',rarity:'rare',value:46,mods:{moraleBonus:2,riskMod:-0.02}},
+      'breach wrench':{type:'weapon',slot:'weapon',rarity:'rare',value:50,mods:{combatBonus:9,riskMod:-0.02}},
+      'tuned capacitor':{type:'tool',slot:'tool',rarity:'rare',value:44,mods:{energyRegen:2,lootBonus:0.03}},
+      'streetline carbine':{type:'weapon',slot:'weapon',rarity:'epic',value:78,mods:{combatBonus:14,lootBonus:0.04}},
+      'coilshot pistol':{type:'weapon',slot:'weapon',rarity:'rare',value:56,mods:{combatBonus:10,energyRegen:1}},
+      'signal mesh cloak':{type:'armor',slot:'chest',rarity:'epic',value:82,mods:{insulation:1.1,combatBonus:3}},
+      'relayrunner pack':{type:'armor',slot:'backpack',rarity:'epic',value:86,mods:{carryBonus:16,lootBonus:0.06}},
+      'glimmer optic':{type:'tool',slot:'tool',rarity:'epic',value:76,mods:{lootBonus:0.1,riskMod:-0.04}},
+      'railspike bayonet':{type:'weapon',slot:'weapon',rarity:'rare',value:58,mods:{combatBonus:11,lootBonus:0.02}},
 
       /* base items */
       'pocket pack':{type:'armor',slot:'backpack',rarity:'common',value:18,mods:{carryBonus:7}},
@@ -562,10 +584,10 @@
 
     const LOOT_BY_RARITY={
       common:['bandage','ration bar','water flask','scrap wiring','scrap bundle','wire spool','cloth scraps','plastic shards','electronics bits','rusty flashlight','cargo pants','field rations','water canister','copper wire','ember ration','morale patch','pocket pack','jury-rigged blade','iron ward seals','tarpaulin roll','lantern oil','thermal wrap','riot-line tape'],
-      uncommon:['flare','patch kit','patch-kit','old coin','spark tonic','utility coat','field backpack','coil battery','spare filter','neon sneakers','underground map','holo wristband','flare paint','foam canister','scavenger harness','hardened canteen','shock gel','salvage tote','scout daypack','scrap spear','compact medkit','filtered water pack','ledger-etched compass','clocktower chime','bunker schematics','stabilizer brace','cache latch','spore lantern','rad moss poultice','hardened bark plate','signal flare rack','bridge-runner pack'],
-      rare:['microcell','lockbox key','echo prism','rigged backpack','exo brace','reactor shard','meme-drive','riot shield','flashbang','limited hoodie','stun baton','mystery supply','salvaged tech','overclock chip','insulated cloak','signal jammer','viral clip drive','expedition frame pack','pipe rifle','market shock knife','monsoon canteen','feral talon','floodgate keycard','arc pistol'],
-      epic:['drone core'],
-      legendary:['relic shard','rust town crown','iron crown','safehouse warden coat','forest monolith sigil','neon riot jacket']
+      uncommon:['flare','patch kit','patch-kit','old coin','spark tonic','utility coat','field backpack','coil battery','spare filter','neon sneakers','underground map','holo wristband','flare paint','foam canister','scavenger harness','hardened canteen','shock gel','salvage tote','scout daypack','scrap spear','compact medkit','filtered water pack','ledger-etched compass','clocktower chime','bunker schematics','stabilizer brace','cache latch','spore lantern','rad moss poultice','hardened bark plate','signal flare rack','bridge-runner pack','sterile stimulants'],
+      rare:['microcell','lockbox key','echo prism','rigged backpack','exo brace','reactor shard','meme-drive','riot shield','flashbang','limited hoodie','stun baton','mystery supply','salvaged tech','overclock chip','insulated cloak','signal jammer','viral clip drive','expedition frame pack','pipe rifle','market shock knife','monsoon canteen','feral talon','floodgate keycard','arc pistol','anti-rad injector','nanite trauma kit','corporate railblade','signal tap gloves','railrunner boots','splicer satchel','uplink rig','tuned capacitor','coilshot pistol','railspike bayonet'],
+      epic:['drone core','executive coil rifle','platinum data cache','streetline carbine','signal mesh cloak','relayrunner pack','glimmer optic'],
+      legendary:['relic shard','rust town crown','iron crown','safehouse warden coat','forest monolith sigil','neon riot jacket','golden credit chip']
     };
 
     const RAID_TEMPLATES=[
@@ -583,7 +605,9 @@
       {id:'town',name:'Shatterline Front',file:'expansions/town.txt'},
       {id:'safehouse',name:'Horizon Shelter',file:'expansions/safehouse.txt'},
       {id:'forest',name:'Glimmerwell Clinic',file:'expansions/forest.txt'},
-      {id:'portland_slums',name:'Grainfall Depot',file:'expansions/portland_slums.txt'}
+      {id:'portland_slums',name:'Grainfall Depot',file:'expansions/portland_slums.txt'},
+      {id:'corporate_complex',name:'Corporate Complex High Rise',file:'expansions/corporate_complex.txt'},
+      {id:'metro_ganglands',name:'Metro Ganglands',file:'expansions/metro_ganglands.txt'}
     ];
     const EMBEDDED_EXPANSIONS={
       town:`@expansion
@@ -838,6 +862,132 @@ reward:barge haul
 success:item:ember ration,item:hardened canteen,credits+12,flag:grain-barge
 fail:hp-6,morale-3
 flag:grain-barge
+once:true`,
+      corporate_complex:`@expansion
+id:corporate_complex
+name:Corporate Complex High Rise
+summary:A sealed corporate tower of mirrored glass and automated turrets. Executive vaults hum above, guarded by merc patrols and cold light.
+shop:false
+
+@door
+label:Corporate Complex Lift
+hint:level 5+ clearance, executive vaults
+note:A silent elevator waits behind a biometric door. The badge reader blinks red.
+risk:high
+minLevel:5
+target:executive-lobby
+
+@scene executive-lobby
+title:Executive Lobby
+desc:Quartz floors are cracked by blast lines. Defense drones scan the mezzanine for movement.
+tags:High rise / Combat
+option:Clear the security mezzanine => executive-lobby | risk:high | time:8 | reward:weapon cache | success:item:corporate railblade,item:platinum data cache,flag:corp-mezzanine,log:You strip a railblade off a pinned guard. | fail:hp-8,morale-4,log:Suppressing fire drives you back.
+option:Secure the med suite => executive-lobby | risk:medium | time:7 | reward:medical supplies | success:item:nanite trauma kit,item:sterile stimulants,flag:corp-med,log:The med suite still holds sealed trauma kits. | fail:hp-5,temp-2,log:A flashbang pops in the hall.
+
+@mission
+id:security-sweep
+label:High rise security sweep
+desc:Force a path through the security floors for weapon lockers.
+risk:high
+time:12
+energy:16
+loot:3
+lootType:weapon lockers
+
+@mission
+id:executive-vault
+label:Executive vault raid
+desc:Crack the penthouse vault for high-value corporate stock.
+risk:high
+time:14
+energy:18
+loot:3
+lootType:high value cache
+
+@quest
+id:corporate-arms
+title:Extract the prototype arm
+desc:A prototype coil rifle is locked in the executive armory. Get it out.
+risk:high
+time:15
+energy:20
+loot:3
+lootType:weapon cache
+reward:prototype weapon
+success:item:executive coil rifle,item:golden credit chip,credits+26,flag:corp-prototype
+fail:hp-10,morale-6
+flag:corp-prototype
+once:true
+
+@quest
+id:corporate-medbay
+title:Stabilize the rooftop medbay
+desc:Keep the rooftop medbay intact long enough to pull the last supplies.
+risk:medium
+time:11
+energy:14
+loot:2
+lootType:medical cache
+reward:medical salvage
+success:item:sterile stimulants,item:anti-rad injector,credits+14,flag:corp-medbay
+fail:hp-6,morale-4
+flag:corp-medbay
+once:true`,
+      metro_ganglands:`@expansion
+id:metro_ganglands
+name:Metro Ganglands
+summary:A derelict metro grid claimed by rival crews and black-market runners. Neon tags glow in the damp and the air crackles with open comms.
+shop:true
+
+@door
+label:Metro Ganglands Gate
+hint:unlock for 30 credits, mid-risk skirmishes
+note:A rail gate rattles as spotters size you up from the shadows.
+risk:medium
+unlockCost:30
+unlockFlag:metro-ganglands-access
+target:gang-siding
+
+@scene gang-siding
+title:Gang Siding
+desc:Broken trains sit in the fog. Traders wheel carts past patched barricades.
+tags:Metro / Skirmish
+option:Cut through the rail tunnels => gang-siding | risk:medium | time:7 | reward:equipment loot | success:item:signal tap gloves,item:railrunner boots,flag:metro-tunnel,log:You snag gear off a downed runner. | fail:hp-5,morale-3,log:Crossfire forces a retreat.
+option:Shake down the market stalls => gang-siding | risk:medium | time:6 | reward:gear haul | success:item:splicer satchel,item:uplink rig,flag:metro-stalls,log:Stall owners cough up their best tech. | fail:credits-6,hp-4,log:You eat a blade in the crowd.
+
+@mission
+id:gangland-sweep
+label:Gangland sweep
+desc:Clear a turf block for equipment caches.
+risk:medium
+time:11
+energy:14
+loot:3
+lootType:equipment crates
+
+@mission
+id:locker-breach
+label:Locker breach run
+desc:Crack the underground lockers for mid-tier weapons.
+risk:medium
+time:10
+energy:12
+loot:2
+lootType:weapon lockers
+
+@quest
+id:metro-telecom
+title:Connect the telecom relay
+desc:Restore the busted telecom uplink so merchants can reroute higher-tier stock.
+risk:medium
+time:12
+energy:15
+loot:2
+lootType:signal cache
+reward:telecom access
+success:item:uplink rig,item:signal tap gloves,credits+16,flag:metro-telecom,log:Signal channels flare to life. Higher-tier stock is now available.
+fail:hp-6,morale-4
+flag:metro-telecom
 once:true`
     };
     let expansionsExpected=0;
@@ -899,7 +1049,8 @@ once:true`
         {id:'compact medkit',cost:32,tag:'Medical'},
         {id:'filtered water pack',cost:26,tag:'Hydration'},
         {id:'spark tonic',cost:22,tag:'Stims'},
-        {id:'morale patch',cost:16,tag:'Recovery'}
+        {id:'morale patch',cost:16,tag:'Recovery'},
+        {id:'anti-rad injector',cost:44,tag:'Radiation care'}
       ],
       portland_slums:[
         {id:'ration bar',cost:14,tag:'Rations'},
@@ -908,8 +1059,28 @@ once:true`
         {id:'water canister',cost:24,tag:'Hydration'},
         {id:'hardened canteen',cost:28,tag:'Hydration'},
         {id:'monsoon canteen',cost:40,tag:'Hydration'}
+      ],
+      metro_ganglands:[
+        {id:'splicer satchel',cost:68,tag:'Backpack'},
+        {id:'signal tap gloves',cost:44,tag:'Gear'},
+        {id:'railrunner boots',cost:46,tag:'Gear'},
+        {id:'uplink rig',cost:58,tag:'Tech'},
+        {id:'insulated cloak',cost:52,tag:'Armor'},
+        {id:'stun baton',cost:62,tag:'Weapon'}
       ]
     };
+    const MARKET_STOCK_METRO_UNLOCK=[
+      {id:'metro arc jacket',cost:84,tag:'Armor'},
+      {id:'ganglands visor',cost:72,tag:'Armor'},
+      {id:'breach wrench',cost:88,tag:'Weapon'},
+      {id:'tuned capacitor',cost:80,tag:'Tech'},
+      {id:'streetline carbine',cost:120,tag:'Weapon'},
+      {id:'coilshot pistol',cost:96,tag:'Weapon'},
+      {id:'signal mesh cloak',cost:132,tag:'Armor'},
+      {id:'relayrunner pack',cost:140,tag:'Backpack'},
+      {id:'glimmer optic',cost:128,tag:'Tech'},
+      {id:'railspike bayonet',cost:92,tag:'Weapon'}
+    ];
     const MARKET_STOCK_DEFAULT=[
       {id:'pocket pack',cost:26,tag:'Backpack'},
       {id:'scout daypack',cost:38,tag:'Backpack'},
@@ -921,6 +1092,7 @@ once:true`
       {id:'compact medkit',cost:30,tag:'Medical'},
       {id:'filtered water pack',cost:28,tag:'Hydration'},
       {id:'morale patch',cost:16,tag:'Morale'},
+      {id:'anti-rad injector',cost:46,tag:'Radiation care'},
       {id:'spare filter',cost:24,tag:'Gear mod'},
       {id:'coil battery',cost:26,tag:'Gear mod'},
       {id:'bunker schematics',cost:44,tag:'Route intel'}
@@ -1036,7 +1208,11 @@ once:true`
     const zoneHasShop=(zone=state.zone)=>isMarketZone(zone) || zone.id==='safehouse';
     const getMarketStockForZone=(zoneId)=>{
       if(!zoneId) return MARKET_STOCK_DEFAULT;
-      return MARKET_STOCK_BY_ZONE[zoneId] || MARKET_STOCK_DEFAULT;
+      const baseStock=MARKET_STOCK_BY_ZONE[zoneId] || MARKET_STOCK_DEFAULT;
+      if(zoneId==='metro_ganglands' && state.flags?.has('metro-telecom')){
+        return [...baseStock,...MARKET_STOCK_METRO_UNLOCK];
+      }
+      return baseStock;
     };
     const ensureZoneScene=(zone=state.zone)=>{
       const exp=expansions[zone.id];
@@ -1143,18 +1319,19 @@ once:true`
     const rarityLabel=(rarity)=>rarity ? `${rarity[0].toUpperCase()}${rarity.slice(1)}` : '';
     const formatEffects=(effect)=>{
       if(!effect) return [];
-      const labels={temp:'body temp',backpack:'backpack slots'};
+      const labels={temp:'body temp',backpack:'backpack slots',rads:'radiation',radgain:'radiation gain'};
       return effect.split(',').map(token=>token.trim()).filter(Boolean).map(token=>{
         if(token.startsWith('item:')) return `Adds item: ${token.slice(5).trim()}`;
         if(token.startsWith('note:')) return token.slice(5).trim();
         if(token.startsWith('log:')) return token.slice(4).trim();
         if(token.startsWith('flag:')) return `Flags ${token.slice(5).trim()}`;
-        const match=token.match(/([a-zA-Z]+)([+-]\d+)/);
+        const match=token.match(/([a-zA-Z]+)([+-]\d+)(%?)/);
         if(match){
           const stat=match[1];
           const delta=match[2];
+          const suffix=match[3] || '';
           const label=labels[stat] || stat;
-          return `${label} ${delta}`;
+          return `${label} ${delta}${suffix}`;
         }
         return token;
       });
@@ -3166,15 +3343,24 @@ once:true`
         if(token.startsWith('flag:')){ state.flags.add(token.slice(5)); return; }
         if(token.startsWith('note:')){ setCodex(token.slice(5)); return; }
         if(token.startsWith('log:')){ logMsg(token.slice(4)); return; }
-        const match=token.match(/([a-zA-Z]+)([+-]\d+)/);
+        const match=token.match(/([a-zA-Z]+)([+-]\d+)(%?)/);
         if(match){
-          const stat=match[1]; const delta=Number(match[2]);
+          const stat=match[1];
+          const delta=Number(match[2]);
+          const isPercent=match[3]==='%';
           if(stat==='hp') state.hp=clamp(state.hp+delta,0,state.maxHp);
           else if(stat==='stamina') state.stamina=clamp(state.stamina+delta,0,state.maxStamina);
           else if(stat==='morale') state.morale=clamp(state.morale+delta,0,state.maxMorale);
           else if(stat==='hunger') state.hunger=clamp(state.hunger+delta,0,state.maxHunger);
           else if(stat==='thirst') state.thirst=clamp(state.thirst+delta,0,state.maxThirst);
-          else if(stat==='rads') state.rads=Math.max(0,state.rads+delta);
+          else if(stat==='rads'){
+            const adjusted=isPercent ? (state.rads*(delta/100)) : (delta>0 ? delta*state.radGainMod : delta);
+            state.rads=Math.max(0,state.rads+adjusted);
+          }
+          else if(stat==='radgain'){
+            const shift=isPercent ? (delta/100) : (delta/100);
+            state.radGainMod=clamp(state.radGainMod+shift,0.25,1);
+          }
           else if(stat==='credits') state.credits=Math.max(0,state.credits+delta);
           else if(stat==='scrap') state.scrap=Math.max(0,state.scrap+delta);
           else if(stat==='energy') state.energy=clamp(state.energy+delta,0,state.maxEnergy);
@@ -3887,6 +4073,18 @@ once:true`
     function addDoor(exp){
       const btn=document.createElement('button');
       btn.innerHTML=`<span>${exp.door?.label||exp.meta.name}</span><span class="small">${exp.door?.hint||'Unknown contact'}</span>`;
+      const minLevel=Number(exp.door?.minLevel || exp.meta?.minLevel || 0);
+      const unlockCost=Number(exp.door?.unlockCost || 0);
+      const unlockFlag=exp.door?.unlockFlag;
+      const isUnlocked=!unlockFlag || state.flags?.has(unlockFlag);
+      const needsUnlock=unlockCost>0 && !isUnlocked;
+      if(minLevel && state.level<minLevel){
+        btn.disabled=true;
+        btn.title=`Requires level ${minLevel}.`;
+      }else if(needsUnlock && state.credits<unlockCost){
+        btn.disabled=true;
+        btn.title=`Need ${unlockCost} credits to unlock.`;
+      }
       btn.onclick=()=>{
         if(isMissionBlockingTravel()){
           setCodex('Mission in progress. Cannot change locations.');
@@ -3899,6 +4097,19 @@ once:true`
         if(state.travel.active){
           setCodex('Already rerouting. Stand by.');
           return;
+        }
+        if(minLevel && state.level<minLevel){
+          setCodex(`Requires level ${minLevel} access.`);
+          return;
+        }
+        if(needsUnlock){
+          if(state.credits<unlockCost){
+            setCodex(`Need ${unlockCost} credits to unlock this zone.`);
+            return;
+          }
+          state.credits-=unlockCost;
+          if(unlockFlag) state.flags.add(unlockFlag);
+          logMsg(`Paid ${unlockCost} credits to unlock ${exp.meta.name}.`);
         }
         const targetScene=exp.door?.target || Object.keys(exp.scenes || {})[0] || null;
         const target={

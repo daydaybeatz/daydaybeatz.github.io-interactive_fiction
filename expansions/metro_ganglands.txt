@@ -1,0 +1,56 @@
+@expansion
+id:metro_ganglands
+name:Metro Ganglands
+summary:A derelict metro grid claimed by rival crews and black-market runners. Neon tags glow in the damp and the air crackles with open comms.
+shop:true
+
+@door
+label:Metro Ganglands Gate
+hint:unlock for 30 credits, mid-risk skirmishes
+note:A rail gate rattles as spotters size you up from the shadows.
+risk:medium
+unlockCost:30
+unlockFlag:metro-ganglands-access
+target:gang-siding
+
+@scene gang-siding
+title:Gang Siding
+desc:Broken trains sit in the fog. Traders wheel carts past patched barricades.
+tags:Metro / Skirmish
+option:Cut through the rail tunnels => gang-siding | risk:medium | time:7 | reward:equipment loot | success:item:signal tap gloves,item:railrunner boots,flag:metro-tunnel,log:You snag gear off a downed runner. | fail:hp-5,morale-3,log:Crossfire forces a retreat.
+option:Shake down the market stalls => gang-siding | risk:medium | time:6 | reward:gear haul | success:item:splicer satchel,item:uplink rig,flag:metro-stalls,log:Stall owners cough up their best tech. | fail:credits-6,hp-4,log:You eat a blade in the crowd.
+
+@mission
+id:gangland-sweep
+label:Gangland sweep
+desc:Clear a turf block for equipment caches.
+risk:medium
+time:11
+energy:14
+loot:3
+lootType:equipment crates
+
+@mission
+id:locker-breach
+label:Locker breach run
+desc:Crack the underground lockers for mid-tier weapons.
+risk:medium
+time:10
+energy:12
+loot:2
+lootType:weapon lockers
+
+@quest
+id:metro-telecom
+title:Connect the telecom relay
+desc:Restore the busted telecom uplink so merchants can reroute higher-tier stock.
+risk:medium
+time:12
+energy:15
+loot:2
+lootType:signal cache
+reward:telecom access
+success:item:uplink rig,item:signal tap gloves,credits+16,flag:metro-telecom,log:Signal channels flare to life. Higher-tier stock is now available.
+fail:hp-6,morale-4
+flag:metro-telecom
+once:true
