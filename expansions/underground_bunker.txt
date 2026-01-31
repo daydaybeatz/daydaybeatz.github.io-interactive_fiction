@@ -1,0 +1,71 @@
+@expansion
+id:underground_bunker
+name:Abandoned Underground Bunker System
+summary:A low-risk labyrinth of concrete corridors and shuttered barracks. Easy opponents, low-tier food, and worn clothing line the halls.
+shop:false
+
+@door
+label:Bunker Access Hatch
+hint:low-risk combat, food runs, clothing caches, telecom job
+risk:low
+note:Condensation beads on the hatch as you descend into the bunker system.
+target:mess-hall
+
+@scene mess-hall
+title:Mess Hall
+desc:Metal tables and dented lockers sit beneath flickering emergency lights.
+tags:Bunker / Low risk
+option:Search the ration cages => mess-hall | risk:low | time:6 | reward:low-tier food | success:item:ration bar,item:water flask,log:You salvage sealed rations from a rusted cage. | fail:hunger+6,log:Only spoiled tins remain.
+option:Strip the barracks lockers => mess-hall | risk:low | time:7 | reward:clothing scraps | success:item:utility coat,item:cloth scraps,log:You gather worn but usable uniforms. | fail:hp-3,log:A locker door clips your shoulder.
+
+@mission
+id:bunker-quick
+label:Mess hall sweep
+desc:Low-risk sweep for food packs and basic clothing.
+risk:low
+time:9
+energy:10
+loot:2
+lootType:low-tier food & clothing
+
+@mission
+id:bunker-deep
+label:Lower tunnel scavenge
+desc:Push deeper for better rations and intact gear.
+risk:medium
+time:12
+energy:14
+loot:3
+lootType:sealed kits
+
+@quest
+id:bunker-telecom-1
+title:Trace the telecom line
+desc:Follow the severed line through the service corridors and map the damage.
+risk:low
+time:8
+energy:10
+loot:1
+lootType:signal trace
+reward:telecom trace
+success:credits+8,flag:bunker-telecom-1,log:You map the cut and mark a clear path to the relay core.
+fail:morale-3
+flag:bunker-telecom-1
+once:true
+
+@quest
+id:bunker-telecom-2
+title:Restart the relay core
+desc:Power the relay core back on—expect a guaranteed fight with a pair of bunker hostiles.
+risk:medium
+time:12
+energy:16
+loot:2
+lootType:relay salvage
+reward:relay restored
+success:item:coil battery,credits+12,flag:bunker-telecom-2,log:The relay crackles to life. New idle dispatch options unlock.
+fail:hp-6,morale-4
+flag:bunker-telecom-2
+requires:bunker-telecom-1
+combat:true
+once:true

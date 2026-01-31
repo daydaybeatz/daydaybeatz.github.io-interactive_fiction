@@ -1,0 +1,54 @@
+@expansion
+id:medical_center
+name:Medical Center
+summary:A clinic wing stripped of most supplies, but still hiding low-tier medical stock. Mid-risk patrols linger in the halls.
+shop:true
+
+@door
+label:Clinic Access Bay
+hint:medical salvage, mid-risk patrols, telecom job
+risk:medium
+note:Sterile lights flicker as you enter the medical wing.
+target:triage
+
+@scene triage
+title:Triage Bay
+desc:Empty gurneys line the bay. Cabinets rattle with leftover kits.
+tags:Medical / Hazard
+option:Check the triage lockers => triage | risk:low | time:6 | reward:basic medical | success:item:bandage,item:painkillers,log:You gather intact wraps and meds. | fail:hp-3,log:A drawer slams on your fingers.
+option:Search the supply cage => triage | risk:medium | time:7 | reward:medical cache | success:item:compact medkit,item:water flask,log:You recover a sealed med case. | fail:hp-5,morale-2,log:A patrol forces a hasty exit.
+
+@mission
+id:clinic-supply
+label:Supply closet sweep
+desc:Low-risk sweep for basic medical items.
+risk:low
+time:9
+energy:10
+loot:2
+lootType:medical basics
+
+@mission
+id:clinic-ward
+label:Ward salvage run
+desc:Push deeper for mid-tier medical packs.
+risk:medium
+time:12
+energy:14
+loot:3
+lootType:medical packs
+
+@quest
+id:medical-telecom
+title:Reconnect the clinic telecoms
+desc:Restore the clinic relay so vendors can source better medical stock.
+risk:medium
+time:11
+energy:15
+loot:2
+lootType:signal crates
+reward:expanded medical stock
+success:item:filtered water pack,credits+14,flag:medical-telecom,log:The relay comes online. More medical supplies reach the shop.
+fail:hp-6,morale-3
+flag:medical-telecom
+once:true

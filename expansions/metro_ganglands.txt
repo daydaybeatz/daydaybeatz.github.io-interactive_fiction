@@ -1,54 +1,55 @@
 @expansion
 id:metro_ganglands
-name:Metro Ganglands
-summary:An underground maze of tagged tunnels, clattering trains, and gang lookout nests trading in mid-tier gear.
-unlockCost:30
+name:Ganglands Metro Shanty
+summary:A mid-risk warren of rail tunnels turned into a shanty bazaar. Mid-tier combatants guard clothing and weapons caches.
+unlockCost:50
 shop:true
 
 @door
 label:Ganglands Turnstile
-hint:equipment runs, mid-tier weapons, telecom job
-note:Graffiti warnings blur past as the ganglands open into the rail tunnels.
+hint:mid-tier gear, weapons, telecom job
+risk:medium
+note:Graffiti and torchlight guide you into the rail shanty.
 target:concourse
 
 @scene concourse
-title:Ganglands Concourse
-desc:Abandoned ticket booths are now gang checkpoints. The rails hum with stolen power.
+title:Shanty Concourse
+desc:Ticket booths are barricaded into gang posts and scrap stalls.
 tags:Metro / Hostile
-option:Trade for a safe route => concourse | risk:low | time:6 | reward:safe passage | success:credits-6,log:You pay a toll and earn a quiet route. | fail:hp-4,log:The lookout spots you anyway.
-option:Slip into the tool cage => concourse | risk:medium | time:7 | reward:gear cache | success:item:coil battery,item:scavenger harness,log:You scoop up toolkits and harnesses. | fail:hp-5,morale-2,log:A sentry catches you climbing out.
+option:Pay for a safe route => concourse | risk:low | time:6 | reward:safe passage | success:credits-6,log:A toll buys a quieter lane. | fail:hp-4,log:A lookout tags you on the way through.
+option:Skim the gear cages => concourse | risk:medium | time:7 | reward:gear cache | success:item:scavenger harness,item:coil battery,log:You nab mid-tier tools before the guards return. | fail:hp-5,morale-2,log:A sentry clips you on the exit.
 
 @mission
 id:gangland-supply
-label:Gangland supply pull
-desc:Run the tunnels for equipment bundles and mid-tier weapons.
+label:Shanty supply pull
+desc:Run the tunnels for mid-tier clothing and weapons.
 risk:medium
 time:11
 energy:14
 loot:3
-lootType:equipment crates
+lootType:mid-tier gear
 
 @mission
 id:tunnel-sweep
-label:Tunnel gear sweep
-desc:Search maintenance shafts for tools and clothing.
+label:Rail line sweep
+desc:Search maintenance shafts for weapons and equipment.
 risk:medium
 time:10
 energy:13
 loot:3
-lootType:utility caches
+lootType:weapons & gear
 
 @quest
-id:metro-telecom
-title:Reconnect the telecom relay
+id:ganglands-telecom
+title:Reconnect the ganglands telecoms
 desc:Splice the shattered fiber lines and bring the relay back online.
 risk:medium
 time:12
 energy:16
 loot:3
 lootType:signal crates
-reward:telecom link
-success:item:data cartridge,credits+18,flag:metro-telecom,log:The relay hums to life. New stock opens across the ganglands.
+reward:mercenary contract
+success:item:data cartridge,credits+18,flag:ganglands-telecom,log:The relay hums to life. A mercenary answers the call, opening a second idle dispatch slot.
 fail:hp-6,morale-4
-flag:metro-telecom
+flag:ganglands-telecom
 once:true
