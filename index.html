@@ -789,10 +789,10 @@
   <div id="app">
     <header>
       <div>
-        <div class="title">Zones - fight, loot, survive. <span class="pill">inventory / looter / idle</span></div>
+        <div class="title">Zones - fight, loot, survive.</div>
         <div class="tagline">Pick zones, run salvage loops, and sort rewards into gear, stash, or scrap.</div>
       </div>
-      <div class="pill">Build #: 0.2b — inventory-focused loop</div>
+      <div class="pill">Build #: 0.3</div>
     </header>
 
     <section class="panel">
@@ -954,7 +954,8 @@
   <script>
     /* ================= STATE & CONSTANTS ================= */
     const SAVE_KEY='zeroLuxSave';
-    const SAVE_VERSION=1;
+    const SAVE_VERSION=2;
+    const createIdleSlot=()=>({active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:''});
     const createDefaultState=()=>({
       hp:92,maxHp:100,
       stamina:90,maxStamina:100,
@@ -984,7 +985,8 @@
       codex:["Hub online. Reward bays clear."],
       stash:{name:'Vault Stash',items:[]},
       marketAccess:{active:false,zoneId:null},
-      idleOps:{active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:'',rewards:[]},
+      idleOps:[createIdleSlot()],
+      idleRewards:[],
       flags:new Set(),
       zone:{id:'drift-yard',name:'Drift Yard',risk:'low',desc:'Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.',sceneId:null},
       screen:'main',
@@ -994,6 +996,29 @@
       stashScreen:'vault',
       selected:{source:null,item:null}
     });
+    const hydrateIdleOps=(savedIdleOps,flags)=>{
+      const slots=Array.isArray(savedIdleOps)
+        ? savedIdleOps.map(slot=>({ ...createIdleSlot(), ...slot }))
+        : savedIdleOps && typeof savedIdleOps==='object'
+          ? [{ ...createIdleSlot(), ...savedIdleOps }]
+          : [createIdleSlot()];
+      const limit=flags.has('ganglands-telecom') ? 2 : 1;
+      while(slots.length<limit){
+        slots.push(createIdleSlot());
+      }
+      if(slots.length>limit){
+        slots.length=limit;
+      }
+      slots.forEach(slot=>{
+        const idleStartedAt=Number(slot.startedAt);
+        const idleDurationMs=Number(slot.durationMs);
+        slot.startedAt=Number.isFinite(idleStartedAt) ? idleStartedAt : null;
+        slot.durationMs=Number.isFinite(idleDurationMs) ? idleDurationMs : 0;
+        slot.completed=Boolean(slot.completed);
+        slot.active=Boolean(slot.active);
+      });
+      return slots;
+    };
     const hydrateState=(saved)=>{
       const base=createDefaultState();
       if(!saved || typeof saved!=='object') return base;
@@ -1001,7 +1026,8 @@
       merged.flags=new Set(saved.flags || []);
       merged.stash={...base.stash,...(saved.stash||{})};
       merged.marketAccess={...base.marketAccess,...(saved.marketAccess||{})};
-      merged.idleOps={...base.idleOps,...(saved.idleOps||{})};
+      merged.idleOps=hydrateIdleOps(saved.idleOps,merged.flags);
+      merged.idleRewards=Array.isArray(saved.idleRewards) ? [...saved.idleRewards] : [];
       merged.zone={...base.zone,...(saved.zone||{})};
       merged.travel={...base.travel,...(saved.travel||{})};
       merged.mission={...base.mission,...(saved.mission||{})};
@@ -1012,10 +1038,6 @@
       const missionEndsAt=Number(merged.mission.endsAt);
       merged.mission.startedAt=Number.isFinite(missionStartedAt) ? missionStartedAt : null;
       merged.mission.endsAt=Number.isFinite(missionEndsAt) ? missionEndsAt : null;
-      const idleStartedAt=Number(merged.idleOps.startedAt);
-      const idleDurationMs=Number(merged.idleOps.durationMs);
-      merged.idleOps.startedAt=Number.isFinite(idleStartedAt) ? idleStartedAt : null;
-      merged.idleOps.durationMs=Number.isFinite(idleDurationMs) ? idleDurationMs : 0;
       merged.radShield=Number.isFinite(Number(merged.radShield)) ? Number(merged.radShield) : 0;
       const radShieldUntil=Number(merged.radShieldUntil);
       merged.radShieldUntil=Number.isFinite(radShieldUntil) ? radShieldUntil : null;
@@ -1193,408 +1215,382 @@
     const RAD_DANGER_THRESHOLD=20;
     const riskTable={low:0.08,medium:0.2,high:0.32,deadly:0.45};
     const riskRank={low:1,medium:2,high:3,deadly:4};
+    const riskLevels=['low','medium','high','deadly'];
+    const lowerRisk=(risk)=>{
+      const idx=riskLevels.indexOf(risk);
+      if(idx<=0) return riskLevels[0];
+      return riskLevels[idx-1] || risk;
+    };
+    const getZoneRiskForExp=(exp,baseRisk)=>{
+      if(exp?.meta?.id==='abandoned_mall' && state.flags.has('mall-power')){
+        return lowerRisk(baseRisk);
+      }
+      return baseRisk;
+    };
     const expansions={};
     const EXPANSION_MANIFEST=[
-      {id:'town',name:'Titan Mart Megastore',file:'expansions/town.txt'},
-      {id:'safehouse',name:'Harbor Barter Shelter',file:'expansions/safehouse.txt'},
-      {id:'forest',name:'Blacksite Service Annex',file:'expansions/forest.txt'},
-      {id:'portland_slums',name:'Rubbletide Shanty Row',file:'expansions/portland_slums.txt'},
-      {id:'corporate_complex',name:'Arclight Corporate High-Rise',file:'expansions/corporate_complex.txt'},
-      {id:'metro_ganglands',name:'Metro Ganglands',file:'expansions/metro_ganglands.txt'}
+      {id:'safehouse',name:'Safe House',file:'expansions/safehouse.txt'},
+      {id:'underground_bunker',name:'Abandoned Underground Bunker System',file:'expansions/underground_bunker.txt'},
+      {id:'metro_ganglands',name:'Ganglands Metro Shanty',file:'expansions/metro_ganglands.txt'},
+      {id:'government_facility',name:'Abandoned Government Facility',file:'expansions/government_facility.txt'},
+      {id:'medical_center',name:'Medical Center',file:'expansions/medical_center.txt'},
+      {id:'abandoned_mall',name:'Abandoned Mall',file:'expansions/abandoned_mall.txt'}
     ];
     const EMBEDDED_EXPANSIONS={
-      town:`@expansion
-id:town
-name:Titan Mart Megastore
-summary:A gutted megagrocer with dark aisles, smashed coolers, and a loading dock turned into a barter line. Shelves still hide sealed cases.
-shop:true
-
-@door
-label:Titan Mart Loading Dock
-hint:food stock, cold storage, bulk salvage
-note:You squeeze past tipped shopping carts and into the cold shadow of the loading dock.
-target:loading-dock
-
-@scene loading-dock
-title:Loading Dock
-desc:Pallets of shrink-wrapped goods are split open and tagged for barter. The air smells like old flour and ozone.
-tags:Grocer / Trade
-option:Check the freezer aisle => loading-dock | risk:medium | time:7 | reward:cold stock | success:item:field rations,item:water canister,flag:titan-freezer,log:You pry a sealed crate of emergency meals from the ice. | fail:temp-2,log:The coolant burns your fingers.
-option:Crack the manager cage => loading-dock | risk:high | time:6 | reward:security cache | success:item:riot-line tape,item:pipe rifle,flag:titan-cage,log:A lockbox still holds a serviceable rifle and straps. | fail:hp-6,log:The cage door slams on your shoulder.
-
-@mission
-id:scavenger-run
-label:Grocer stock run
-desc:Quick sweep across the aisles for sealed stock.
-risk:medium
-time:9
-energy:12
-loot:2
-lootType:sealed stock
-
-@mission
-id:equipment-run-2
-label:Dangerous stockroom loot run
-desc:Push into the locked stockroom for intact kits and tools.
-risk:high
-time:14
-energy:18
-loot:3
-lootType:bulk supplies
-
-@quest
-id:frontline-relay
-title:Recover the shipment manifest
-desc:Locate the master manifest kiosk so the shelter can track remaining stock.
-risk:high
-time:12
-energy:16
-loot:3
-lootType:stock ledger
-reward:manifest recovery
-success:item:signal flare rack,item:riot shield,credits+18,flag:frontline-relay
-fail:hp-10,morale-4
-flag:frontline-relay
-once:true
-
-@quest
-id:frontline-medic
-title:Escort the barter runner
-desc:Keep a runner alive long enough to haul an overloaded cart back to safety.
-risk:medium
-time:10
-energy:14
-loot:2
-lootType:trade kits
-reward:barter run
-success:item:bandage,item:morale patch,credits+12,flag:frontline-medic
-fail:hp-6,morale-5
-flag:frontline-medic
-once:true`,
       safehouse:`@expansion
 id:safehouse
-name:Harbor Barter Shelter
-summary:A fortified shelter wedged into a river pier. Bunks, a barter counter, and a hand-painted notice wall keep the community glued together.
+name:Safe House
+summary:A reinforced bunker hub with bunks, a trade counter, and a humming generator wall. No loot runs here—just recovery and planning.
 shop:true
 
 @door
-label:Harbor Shelter Gate
-hint:rest, barter, recovery
-note:The gate locks behind you. Warm light and stew steam bleed into the corridor.
+label:Safe House Airlock
+hint:rest, shop, recovery
+risk:low
+note:The airlock seals and the bunker hum steadies your breathing.
 target:commons
 
 @scene commons
-title:Harbor Commons
-desc:Rows of bunks glow with heat lamps. A barter counter sits beside a wall of hand-scrawled schedules.
-tags:Safe / Barter
-option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+10,stamina+12,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
-option:Boil a meal at the heater => commons | risk:low | time:5 | reward:hot meal | success:hunger-18,thirst-6,temp+2,log:Steam and salt do the job. | fail:hunger-4,log:The burner sputters out.
-option:Update the shelter logbook => commons | risk:low | time:4 | reward:morale boost | success:morale+5,flag:horizon-log,log:New names go on the board. Old names come off. | fail:morale-2,log:The pen runs dry.
+title:Safe House Commons
+desc:Warm lights, clean water, and the trade counter keep the crew steady between runs.
+tags:Safe / Hub
+option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+12,stamina+14,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
+option:Reset the loadout bench => commons | risk:low | time:5 | reward:prep | success:energy+6,log:You tighten straps and reset your kit. | fail:stamina-2,log:The bench clamps fail you.
 
 @quest
-id:shelter-vent
-title:Seal the intake vents
-desc:Patch a cracked intake valve before the next storm rolls through.
-risk:medium
-time:8
-energy:10
-loot:2
-lootType:shelter supplies
-reward:vent patches
-success:item:thermal wrap,item:spare filter,credits+10,flag:shelter-vent
-fail:temp-3,morale-4
-flag:shelter-vent
-once:true
-
-@quest
-id:shelter-reserve
-title:Audit the reserve lockers
-desc:Count and re-tag the emergency lockers in the lower hall before trade night.
-risk:low
-time:7
-energy:8
-loot:1
-lootType:stored rations
-reward:bonus rations
-success:item:ration bar,item:water flask,credits+6,flag:shelter-reserve
-fail:morale-2
-flag:shelter-reserve
-once:true`,
-      forest:`@expansion
-id:forest
-name:Blacksite Service Annex
-summary:A shuttered government annex with rusted blast doors, silent terminals, and warning stripes still intact.
-shop:true
-
-@door
-label:Annex Checkpoint
-hint:classified caches, facility tech
-note:Warning stripes fade under your boots as the checkpoint scanners wheeze awake.
-target:control-hall
-
-@scene control-hall
-title:Control Hall
-desc:Desks and terminals sit frozen under dust. A backup generator hums somewhere below.
-tags:Government / Hazard
-option:Stabilize the power feed => control-hall | risk:medium | time:8 | reward:facility access | success:credits+10,flag:clinic-power,log:Control lights hum back to steady. | fail:temp-2,log:The breaker snaps.
-option:Scan the access ledger => control-hall | risk:high | time:7 | reward:classified intel | success:item:compact medkit,flag:clinic-ledger,log:A sealed drawer pops with the right code. | fail:hp-6,log:An alarm shrieks and then dies.
-
-@mission
-id:medical-run
-label:Dangerous annex loot run
-desc:Push into the restricted wing for trauma supplies and tech.
-risk:high
-time:12
-energy:16
-loot:3
-lootType:classified crates
-
-@mission
-id:item-run
-label:Dangerous systems loot run
-desc:Raid the sealed lockers for high-value gear.
-risk:high
-time:11
-energy:15
-loot:2
-lootType:facility gear
-
-@quest
-id:clinic-serum
-title:Retrieve the sealed payload
-desc:A sealed payload canister is still logged in the vault freezer.
-risk:high
-time:13
-energy:18
-loot:3
-lootType:facility cache
-reward:sealed payload
-success:item:filtered water pack,item:painkillers,credits+20,flag:clinic-serum
-fail:hp-8,morale-4
-flag:clinic-serum
-once:true
-
-@quest
-id:clinic-evac
-title:Evacuate the survey drone
-desc:Bring the intact survey drone back online and escort it out.
-risk:medium
-time:10
-energy:14
-loot:2
-lootType:facility supplies
-reward:drone kit
-success:item:spark tonic,item:bandage,credits+14,flag:clinic-evac
-fail:hp-6,morale-3
-flag:clinic-evac
-once:true`,
-      portland_slums:`@expansion
-id:portland_slums
-name:Rubbletide Shanty Row
-summary:A dangerous shanty sprawl of tarp roofs, rope bridges, and rusted containers hanging over dark water.
-shop:true
-
-@door
-label:Rubbletide Access
-hint:shanty caches, risky barter runs
-note:You step onto a wobbling plank bridge as the shanty fires crackle below.
-target:tarp-lane
-
-@scene tarp-lane
-title:Tarp Lane
-desc:Tarp roofs sag under rainwater. Rope bridges sway between stacked containers.
-tags:Shanty / Dangerous
-option:Patch a rope bridge => tarp-lane | risk:medium | time:6 | reward:route salvage | success:item:field rations,flag:grain-pallet,log:You lash down a crate of edible packs. | fail:hunger+6,log:The bridge lurches under your weight.
-option:Follow the smoke trail => tarp-lane | risk:high | time:8 | reward:cache clue | success:item:ember ration,flag:grain-trail,log:A trail of cooking smoke leads to a sealed cache. | fail:hp-5,log:A plank snaps and drops you hard.
-
-@mission
-id:random-run
-label:Dangerous shanty loot run
-desc:Navigate the shanty alleys for whatever the tides left.
-risk:high
-time:12
-energy:16
-loot:3
-lootType:mixed salvage
-
-@mission
-id:food-run
-label:Dangerous barter run
-desc:Cut through the shanty market for preserved rations.
-risk:high
-time:10
-energy:15
-loot:3
-lootType:barter stores
-
-@quest
-id:grain-silo
-title:Crack the lockbox shanty
-desc:Open the locked container before the gang returns.
-risk:high
-time:13
-energy:18
-loot:4
-lootType:barter stores
-reward:lockbox haul
-success:item:field rations,item:water canister,credits+18,flag:grain-silo
-fail:hp-8,hunger+8
-flag:grain-silo
-once:true
-
-@quest
-id:grain-barge
-title:Salvage the barge cache
-desc:A barge of preserved goods sits wedged under the bridge.
+id:safehouse-vents
+title:Fix the ventilation system
+desc:Patch the corroded vent intake so the bunker can cycle clean air again.
 risk:medium
 time:9
 energy:12
-loot:2
-lootType:food crates
-reward:barge haul
-success:item:ember ration,item:hardened canteen,credits+12,flag:grain-barge
-fail:hp-6,morale-3
-flag:grain-barge
-once:true`
-      ,
-      corporate_complex:`@expansion
-id:corporate_complex
-name:Arclight Corporate High-Rise
-summary:A corporate complex high-rise of shattered glass and cold marble, crawling with patrols guarding premium caches and medical bays.
-minLevel:5
+loot:1
+lootType:maintenance cache
+reward:ventilation restored
+success:item:spare filter,credits+8,morale+6,flag:safehouse-vents,log:The fans spin up and the air clears. Maintenance dispatches are back online.
+fail:temp-3,morale-4
+flag:safehouse-vents
+once:true`,
+      underground_bunker:`@expansion
+id:underground_bunker
+name:Abandoned Underground Bunker System
+summary:A low-risk labyrinth of concrete corridors and shuttered barracks. Easy opponents, low-tier food, and worn clothing line the halls.
 shop:false
 
 @door
-label:Arclight Service Lift
-hint:executive armory, med bays, high-value loot
-note:Elevator cables groan as you slip into the tower's service lift.
-target:executive-lobby
+label:Bunker Access Hatch
+hint:low-risk combat, food runs, clothing caches, telecom job
+risk:low
+note:Condensation beads on the hatch as you descend into the bunker system.
+target:mess-hall
 
-@scene executive-lobby
-title:Executive Lobby
-desc:Security kiosks blink in the marble atrium. The air reeks of ozone and spilled antiseptic.
-tags:Corporate / Combat
-option:Force the security vault => executive-lobby | risk:high | time:8 | reward:weapon cache | success:item:arc pistol,item:riot shield,log:You pry open a vault drawer stuffed with combat gear. | fail:hp-8,morale-4,log:A stunner arc jumps the panel.
-option:Clear the triage wing => executive-lobby | risk:medium | time:7 | reward:medical supplies | success:item:compact medkit,item:painkillers,log:You strip the triage lockers for intact kits. | fail:hp-4,temp-1,log:A smashed vial cuts your hand.
-
-@mission
-id:executive-run
-label:High-rise weapons sweep
-desc:Room-to-room sweep for intact weapon crates.
-risk:high
-time:14
-energy:18
-loot:4
-lootType:weapon cases
+@scene mess-hall
+title:Mess Hall
+desc:Metal tables and dented lockers sit beneath flickering emergency lights.
+tags:Bunker / Low risk
+option:Search the ration cages => mess-hall | risk:low | time:6 | reward:low-tier food | success:item:ration bar,item:water flask,log:You salvage sealed rations from a rusted cage. | fail:hunger+6,log:Only spoiled tins remain.
+option:Strip the barracks lockers => mess-hall | risk:low | time:7 | reward:clothing scraps | success:item:utility coat,item:cloth scraps,log:You gather worn but usable uniforms. | fail:hp-3,log:A locker door clips your shoulder.
 
 @mission
-id:med-vault-run
-label:High-rise medical sweep
-desc:Secure trauma supplies from sealed clinics.
+id:bunker-quick
+label:Mess hall sweep
+desc:Low-risk sweep for food packs and basic clothing.
+risk:low
+time:9
+energy:10
+loot:2
+lootType:low-tier food & clothing
+
+@mission
+id:bunker-deep
+label:Lower tunnel scavenge
+desc:Push deeper for better rations and intact gear.
 risk:medium
 time:12
-energy:15
+energy:14
 loot:3
-lootType:medical supplies
+lootType:sealed kits
 
 @quest
-id:penthouse-raid
-title:Crack the penthouse armory
-desc:The executive armory still registers sealed. Punch through and haul the best weapons out.
-risk:high
-time:15
-energy:20
-loot:4
-lootType:armory cache
-reward:armory haul
-success:item:arc pistol,item:market shock knife,credits+24,flag:penthouse-raid
-fail:hp-10,morale-6
-flag:penthouse-raid
+id:bunker-telecom-1
+title:Trace the telecom line
+desc:Follow the severed line through the service corridors and map the damage.
+risk:low
+time:8
+energy:10
+loot:1
+lootType:signal trace
+reward:telecom trace
+success:credits+8,flag:bunker-telecom-1,log:You map the cut and mark a clear path to the relay core.
+fail:morale-3
+flag:bunker-telecom-1
 once:true
 
 @quest
-id:triage-cache
-title:Secure the triage cabinet
-desc:Pull the locked medical cabinet before patrols return.
+id:bunker-telecom-2
+title:Restart the relay core
+desc:Power the relay core back on—expect a guaranteed fight with a pair of bunker hostiles.
 risk:medium
-time:11
-energy:14
-loot:3
-lootType:medical packs
-reward:triage cache
-success:item:anti-rad serum,item:compact medkit,credits+16,flag:triage-cache
-fail:hp-6,temp-2
-flag:triage-cache
+time:12
+energy:16
+loot:2
+lootType:relay salvage
+reward:relay restored
+success:item:coil battery,credits+12,flag:bunker-telecom-2,log:The relay crackles to life. New idle dispatch options unlock.
+fail:hp-6,morale-4
+flag:bunker-telecom-2
+requires:bunker-telecom-1
+combat:true
 once:true`,
       metro_ganglands:`@expansion
 id:metro_ganglands
-name:Metro Ganglands
-summary:An underground maze of tagged tunnels, clattering trains, and gang lookout nests trading in mid-tier gear.
-unlockCost:30
+name:Ganglands Metro Shanty
+summary:A mid-risk warren of rail tunnels turned into a shanty bazaar. Mid-tier combatants guard clothing and weapons caches.
+unlockCost:50
 shop:true
 
 @door
 label:Ganglands Turnstile
-hint:equipment runs, mid-tier weapons, telecom job
-note:Graffiti warnings blur past as the ganglands open into the rail tunnels.
+hint:mid-tier gear, weapons, telecom job
+risk:medium
+note:Graffiti and torchlight guide you into the rail shanty.
 target:concourse
 
 @scene concourse
-title:Ganglands Concourse
-desc:Abandoned ticket booths are now gang checkpoints. The rails hum with stolen power.
+title:Shanty Concourse
+desc:Ticket booths are barricaded into gang posts and scrap stalls.
 tags:Metro / Hostile
-option:Trade for a safe route => concourse | risk:low | time:6 | reward:safe passage | success:credits-6,log:You pay a toll and earn a quiet route. | fail:hp-4,log:The lookout spots you anyway.
-option:Slip into the tool cage => concourse | risk:medium | time:7 | reward:gear cache | success:item:coil battery,item:scavenger harness,log:You scoop up toolkits and harnesses. | fail:hp-5,morale-2,log:A sentry catches you climbing out.
+option:Pay for a safe route => concourse | risk:low | time:6 | reward:safe passage | success:credits-6,log:A toll buys a quieter lane. | fail:hp-4,log:A lookout tags you on the way through.
+option:Skim the gear cages => concourse | risk:medium | time:7 | reward:gear cache | success:item:scavenger harness,item:coil battery,log:You nab mid-tier tools before the guards return. | fail:hp-5,morale-2,log:A sentry clips you on the exit.
 
 @mission
 id:gangland-supply
-label:Gangland supply pull
-desc:Run the tunnels for equipment bundles and mid-tier weapons.
+label:Shanty supply pull
+desc:Run the tunnels for mid-tier clothing and weapons.
 risk:medium
 time:11
 energy:14
 loot:3
-lootType:equipment crates
+lootType:mid-tier gear
 
 @mission
 id:tunnel-sweep
-label:Tunnel gear sweep
-desc:Search maintenance shafts for tools and clothing.
+label:Rail line sweep
+desc:Search maintenance shafts for weapons and equipment.
 risk:medium
 time:10
 energy:13
 loot:3
-lootType:utility caches
+lootType:weapons & gear
 
 @quest
-id:metro-telecom
-title:Reconnect the telecom relay
+id:ganglands-telecom
+title:Reconnect the ganglands telecoms
 desc:Splice the shattered fiber lines and bring the relay back online.
 risk:medium
 time:12
 energy:16
 loot:3
 lootType:signal crates
-reward:telecom link
-success:item:data cartridge,credits+18,flag:metro-telecom,log:The relay hums to life. New stock opens across the ganglands.
+reward:mercenary contract
+success:item:data cartridge,credits+18,flag:ganglands-telecom,log:The relay hums to life. A mercenary answers the call, opening a second idle dispatch slot.
 fail:hp-6,morale-4
-flag:metro-telecom
+flag:ganglands-telecom
+once:true`,
+      government_facility:`@expansion
+id:government_facility
+name:Abandoned Government Facility
+summary:A sealed agency compound with broken scanners and hardened patrols. Mid-tier risk with hard combatants and better gear.
+minLevel:7
+shop:false
+
+@door
+label:Facility Security Gate
+hint:hard combatants, weapons, tools, telecom job
+risk:high
+note:The security gate grinds open and the halls go quiet.
+target:control-hall
+
+@scene control-hall
+title:Control Hall
+desc:Security consoles flicker, and sealed doors hiss with pressure.
+tags:Government / Hazard
+option:Run a diagnostic sweep => control-hall | risk:medium | time:7 | reward:systems intel | success:credits+10,log:You recover a diagnostic snapshot. | fail:temp-2,log:The breaker snaps and the room chills.
+option:Crack the sealed locker => control-hall | risk:high | time:8 | reward:gear cache | success:item:utility coat,item:patch kit,log:You pry loose a cache of uniforms and tools. | fail:hp-6,log:A security latch bites your hand.
+
+@mission
+id:facility-sweep
+label:Security sweep
+desc:Room-to-room sweep for mid-tier weapons and tools.
+risk:medium
+time:12
+energy:16
+loot:3
+lootType:weapons & tools
+
+@mission
+id:facility-deep
+label:Hardline extraction
+desc:Push through hard combatants for high-tier clothing.
+risk:high
+time:14
+energy:18
+loot:4
+lootType:reinforced clothing
+
+@quest
+id:facility-telecom
+title:Reconnect the facility telecom grid
+desc:Bring the facility telecom backbone online to accelerate idle dispatches.
+risk:high
+time:13
+energy:18
+loot:3
+lootType:signal crates
+reward:dispatch acceleration
+success:item:signal flare rack,credits+20,flag:facility-telecom,log:The telecom grid stabilizes. Idle dispatches now complete faster.
+fail:hp-8,morale-5
+flag:facility-telecom
+once:true`,
+      medical_center:`@expansion
+id:medical_center
+name:Medical Center
+summary:A clinic wing stripped of most supplies, but still hiding low-tier medical stock. Mid-risk patrols linger in the halls.
+shop:true
+
+@door
+label:Clinic Access Bay
+hint:medical salvage, mid-risk patrols, telecom job
+risk:medium
+note:Sterile lights flicker as you enter the medical wing.
+target:triage
+
+@scene triage
+title:Triage Bay
+desc:Empty gurneys line the bay. Cabinets rattle with leftover kits.
+tags:Medical / Hazard
+option:Check the triage lockers => triage | risk:low | time:6 | reward:basic medical | success:item:bandage,item:painkillers,log:You gather intact wraps and meds. | fail:hp-3,log:A drawer slams on your fingers.
+option:Search the supply cage => triage | risk:medium | time:7 | reward:medical cache | success:item:compact medkit,item:water flask,log:You recover a sealed med case. | fail:hp-5,morale-2,log:A patrol forces a hasty exit.
+
+@mission
+id:clinic-supply
+label:Supply closet sweep
+desc:Low-risk sweep for basic medical items.
+risk:low
+time:9
+energy:10
+loot:2
+lootType:medical basics
+
+@mission
+id:clinic-ward
+label:Ward salvage run
+desc:Push deeper for mid-tier medical packs.
+risk:medium
+time:12
+energy:14
+loot:3
+lootType:medical packs
+
+@quest
+id:medical-telecom
+title:Reconnect the clinic telecoms
+desc:Restore the clinic relay so vendors can source better medical stock.
+risk:medium
+time:11
+energy:15
+loot:2
+lootType:signal crates
+reward:expanded medical stock
+success:item:filtered water pack,credits+14,flag:medical-telecom,log:The relay comes online. More medical supplies reach the shop.
+fail:hp-6,morale-3
+flag:medical-telecom
+once:true`,
+      abandoned_mall:`@expansion
+id:abandoned_mall
+name:Abandoned Mall
+summary:A hollow mall with shuttered storefronts and a quiet food court. Mid-risk runs for low-tier food and supply crates.
+shop:false
+
+@door
+label:Mall Service Entrance
+hint:food runs, mid-risk corridors, power restart
+risk:medium
+note:Neon reflections dance on polished tiles as you step inside.
+target:food-court
+
+@scene food-court
+title:Food Court
+desc:Tables are stacked into makeshift barriers. The air smells of cold grease.
+tags:Mall / Hazard
+option:Check the kiosk storage => food-court | risk:medium | time:7 | reward:food stash | success:item:ration bar,item:field rations,log:You pull sealed meals from a storage bin. | fail:hunger+8,log:The stash is picked clean.
+option:Search the loading dock => food-court | risk:medium | time:8 | reward:food crates | success:item:water canister,item:ember ration,log:You drag out a pallet of usable supplies. | fail:hp-5,log:A falling shutter clips your shoulder.
+
+@mission
+id:mall-snack
+label:Food court sweep
+desc:Low-risk sweep for low-tier food items.
+risk:medium
+time:9
+energy:10
+loot:2
+lootType:low-tier food
+
+@mission
+id:mall-stockroom
+label:Backroom stock run
+desc:Push deeper for better food crates.
+risk:medium
+time:12
+energy:14
+loot:3
+lootType:food crates
+
+@quest
+id:mall-power-1
+title:Trace the power breakers
+desc:Map the breaker panels and identify the dead zones.
+risk:medium
+time:9
+energy:12
+loot:1
+lootType:power parts
+reward:power diagnostics
+success:credits+8,flag:mall-power-1,log:The breaker layout is mapped. You can reach the main switch.
+fail:temp-2,morale-3
+flag:mall-power-1
+once:true
+
+@quest
+id:mall-power-2
+title:Bring the mall power online
+desc:Restart the main power feeds. This will lower the mall's risk and improve food finds.
+risk:medium
+time:12
+energy:16
+loot:2
+lootType:power salvage
+reward:mall power restored
+success:item:spare filter,credits+12,flag:mall-power,log:The lights blaze back on. Mall risk drops and food supplies are easier to locate.
+fail:hp-6,morale-4
+flag:mall-power
+requires:mall-power-1
 once:true`
     };
     let expansionsExpected=0;
     let expansionsLoaded=0;
     let expansionsAttempted=0;
     const idleOperations=[
-      {id:'salvage',label:'Drone salvage',desc:'Remote drones bring back scrap and junk.',duration:3,cost:{credits:8},reward:'scrap+3,item:scrap wiring'},
-      {id:'survey',label:'Cartography sweep',desc:'Low-risk sweep for new routes and caches.',duration:2,cost:{credits:5},reward:'credits+4,item:old coin'},
-      {id:'resupply',label:'Supply errand',desc:'Courier route for field medicine.',duration:4,cost:{credits:10,scrap:1},reward:'item:bandage,item:water flask'}
+      {id:'bunker-maintenance',label:'Bunker maintenance run',desc:'Maintenance crews stabilize morale and earn a few credits.',duration:3,cost:{credits:6},reward:'credits+5,morale+4,item:old coin',unlockFlag:'safehouse-vents',xp:8},
+      {id:'tunnel-relay',label:'Relay salvage sweep',desc:'Bunker scouts recover salvage and food from the old tunnels.',duration:4,cost:{credits:10,scrap:1},reward:'item:ration bar,item:cloth scraps,credits+6',unlockFlag:'bunker-telecom-2',xp:10}
     ];
 
     const IDLE_DURATION_MULTIPLIER=1;
+    const getIdleDurationMultiplier=()=>state.flags.has('facility-telecom') ? IDLE_DURATION_MULTIPLIER*0.85 : IDLE_DURATION_MULTIPLIER;
     const TIME_DISPLAY_MULTIPLIER=4;
     const formatMinutesPrecise=(minutes)=>minutes>=1?`${minutes.toFixed(1)} min`:`${Math.max(5,Math.round(minutes*60))}s`;
     const getIdleDurationMinutes=(op,gearMods=getGearMods())=>{
-      const base=op.duration*IDLE_DURATION_MULTIPLIER;
+      const base=op.duration*getIdleDurationMultiplier();
       const adjusted=base*(1-(gearMods.idleSpeed||0));
       return clamp(adjusted,1,5);
     };
@@ -1628,16 +1624,7 @@ once:true`
         {id:'thermal wrap',cost:20,tag:'Warmth'},
         {id:'anti-rad serum',cost:46,tag:'Anti-rad'}
       ],
-      town:[
-        {id:'jury-rigged blade',cost:20,tag:'Weapon'},
-        {id:'scrap spear',cost:34,tag:'Weapon'},
-        {id:'pipe rifle',cost:72,tag:'Weapon'},
-        {id:'riot shield',cost:58,tag:'Defense'},
-        {id:'utility coat',cost:32,tag:'Armor'},
-        {id:'exo brace',cost:46,tag:'Field gear'},
-        {id:'anti-rad serum',cost:46,tag:'Anti-rad'}
-      ],
-      forest:[
+      medical_center:[
         {id:'bandage',cost:10,tag:'Medical'},
         {id:'painkillers',cost:18,tag:'Medical'},
         {id:'compact medkit',cost:32,tag:'Medical'},
@@ -1646,43 +1633,20 @@ once:true`
         {id:'morale patch',cost:16,tag:'Recovery'},
         {id:'anti-rad serum',cost:46,tag:'Anti-rad'}
       ],
-      portland_slums:[
-        {id:'ration bar',cost:14,tag:'Rations'},
-        {id:'field rations',cost:20,tag:'Rations'},
-        {id:'ember ration',cost:22,tag:'Rations'},
-        {id:'water canister',cost:24,tag:'Hydration'},
-        {id:'hardened canteen',cost:28,tag:'Hydration'},
-        {id:'monsoon canteen',cost:40,tag:'Hydration'},
-        {id:'anti-rad serum',cost:46,tag:'Anti-rad'}
-      ],
-      corporate_complex:[
-        {id:'arc pistol',cost:82,tag:'Weapon'},
-        {id:'market shock knife',cost:64,tag:'Weapon'},
-        {id:'riot shield',cost:60,tag:'Defense'},
-        {id:'compact medkit',cost:32,tag:'Medical'},
-        {id:'painkillers',cost:20,tag:'Medical'},
-        {id:'anti-rad serum',cost:46,tag:'Anti-rad'}
-      ],
       metro_ganglands:[
+        {id:'utility coat',cost:34,tag:'Armor'},
+        {id:'riot jacket',cost:120,tag:'Armor'},
         {id:'scavenger harness',cost:30,tag:'Clothing'},
         {id:'limited hoodie',cost:44,tag:'Clothing'},
-        {id:'utility coat',cost:34,tag:'Armor'},
-        {id:'coil battery',cost:26,tag:'Tool'},
-        {id:'flashbang',cost:48,tag:'Tool'},
-        {id:'market shock knife',cost:62,tag:'Weapon'}
+        {id:'market shock knife',cost:62,tag:'Weapon'},
+        {id:'pipe rifle',cost:72,tag:'Weapon'}
       ]
     };
-    const METRO_GANGLANDS_UPGRADE_STOCK=[
-      {id:'arc pistol',cost:82,tag:'Weapon'},
-      {id:'stun baton',cost:52,tag:'Weapon'},
-      {id:'riot jacket',cost:120,tag:'Armor'},
-      {id:'facility command badge',cost:140,tag:'Tool'},
-      {id:'drone core',cost:96,tag:'Tool'},
-      {id:'expedition frame pack',cost:72,tag:'Backpack'},
-      {id:'signal jammer',cost:58,tag:'Tool'},
-      {id:'overclock chip',cost:60,tag:'Tool'},
-      {id:'insulated cloak',cost:54,tag:'Armor'},
-      {id:'exo brace',cost:50,tag:'Gear'}
+    const MEDICAL_CENTER_UPGRADE_STOCK=[
+      {id:'compact medkit',cost:30,tag:'Medical'},
+      {id:'painkillers',cost:20,tag:'Medical'},
+      {id:'anti-rad serum',cost:46,tag:'Anti-rad'},
+      {id:'filtered water pack',cost:28,tag:'Hydration'}
     ];
     const MARKET_STOCK_DEFAULT=[
       {id:'pocket pack',cost:26,tag:'Backpack'},
@@ -1804,6 +1768,19 @@ once:true`
       const hour=((h+11)%12+1);return `${hour}:${m.toString().padStart(2,'0')} ${suffix}`;
     }
     const setCodex=(msg)=>{ state.codex=[msg]; };
+    const getIdleSlotLimit=()=>state.flags.has('ganglands-telecom') ? 2 : 1;
+    const syncIdleSlots=()=>{
+      if(!Array.isArray(state.idleOps)){
+        state.idleOps=[createIdleSlot()];
+      }
+      const limit=getIdleSlotLimit();
+      while(state.idleOps.length<limit){
+        state.idleOps.push(createIdleSlot());
+      }
+      if(state.idleOps.length>limit){
+        state.idleOps.length=limit;
+      }
+    };
     const isHubZone=(zone=state.zone)=>{
       if(!zone) return false;
       const name=(zone.name||'').toLowerCase();
@@ -1815,15 +1792,15 @@ once:true`
       if(!zone) return false;
       const exp=expansions[zone.id];
       if(exp?.meta?.shop==='true') return true;
-      return zone.id==='town' || (zone.name||'').toLowerCase().includes('market');
+      return (zone.name||'').toLowerCase().includes('market');
     };
     const zoneHasShop=(zone=state.zone)=>isMarketZone(zone) || zone.id==='safehouse';
     const getMarketStockForZone=(zoneId)=>{
       if(!zoneId) return MARKET_STOCK_DEFAULT;
-      if(zoneId==='metro_ganglands'){
+      if(zoneId==='medical_center'){
         const base=MARKET_STOCK_BY_ZONE[zoneId] || MARKET_STOCK_DEFAULT;
-        if(state.flags.has('metro-telecom')){
-          return [...base,...METRO_GANGLANDS_UPGRADE_STOCK];
+        if(state.flags.has('medical-telecom')){
+          return [...base,...MEDICAL_CENTER_UPGRADE_STOCK];
         }
         return base;
       }
@@ -1857,8 +1834,9 @@ once:true`
         renderMissionStatus();
         return;
       }
-      if(state.idleOps.active && !state.idleOps.completed){
-        state.idleOps.statusMessage=stamp;
+      const activeIdleSlot=state.idleOps.find(slot=>slot.active && !slot.completed);
+      if(activeIdleSlot){
+        activeIdleSlot.statusMessage=stamp;
         renderIdleOps();
         return;
       }
@@ -2374,30 +2352,35 @@ once:true`
       renderAll();
     }
 
-    function resetIdleOpsState(){
-      state.idleOps={active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:'',rewards:[]};
+    function resetIdleSlot(slot){
+      Object.assign(slot,createIdleSlot());
     }
-    function closeIdleOp(){
-      resetIdleOpsState();
+    function closeIdleOp(slotIndex){
+      const slot=state.idleOps[slotIndex];
+      if(!slot) return;
+      resetIdleSlot(slot);
       state.selected={source:null,item:null};
-      setCodex('Idle operation closed. Ready for another dispatch.');
+      setCodex('Idle operation slot cleared. Ready for another dispatch.');
       renderAll();
     }
 
     function startIdleOp(opId){
-      if(state.idleOps.active){
-        setCodex('An idle operation is already underway.');
+      syncIdleSlots();
+      if((state.idleRewards?.length||0)>0){
+        setCodex('Resolve idle rewards before dispatching a new operation.');
         return;
-      }
-      if(state.idleOps.completed){
-        if((state.idleOps.rewards?.length||0)>0){
-          setCodex('Resolve idle rewards before dispatching a new operation.');
-          return;
-        }
-        resetIdleOpsState();
       }
       const op=idleOperations.find(entry=>entry.id===opId);
       if(!op) return;
+      if(op.unlockFlag && !state.flags.has(op.unlockFlag)){
+        setCodex('Idle dispatch locked. Complete the required contract to unlock it.');
+        return;
+      }
+      const slot=state.idleOps.find(entry=>!entry.active && !entry.completed);
+      if(!slot){
+        setCodex('All idle dispatch slots are occupied.');
+        return;
+      }
       if(!canAfford(op.cost)){
         setCodex('Insufficient resources for this operation.');
         return;
@@ -2406,35 +2389,37 @@ once:true`
       applyCost(op.cost);
       const gearMods=getGearMods();
       const duration=getIdleDurationMinutes(op,gearMods);
-      state.idleOps={
+      Object.assign(slot,{
         active:true,
         id:opId,
         startedAt:Date.now(),
         durationMs:duration*60000,
         etaMinutes:duration,
         completed:false,
-        statusMessage:`Idle op launched: ${op.label}.`,
-        rewards:[]
-      };
+        statusMessage:`Idle op launched: ${op.label}.`
+      });
       logMsg(`Idle op launched: ${op.label}. ETA ${formatMinutesPrecise(duration)}.`);
       renderAll();
     }
 
-    function completeIdleOp(){
-      const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+    function completeIdleOp(slot){
+      const op=idleOperations.find(entry=>entry.id===slot.id);
       if(!op) return;
       const rewards=[];
       applyEffects(op.reward,'success',{deferItemsTo:rewards});
-      state.idleOps={
+      if(op.xp){
+        awardXp(op.xp,op.label);
+      }
+      state.idleRewards.push(...rewards);
+      Object.assign(slot,{
         active:false,
         id:op.id,
         startedAt:null,
         durationMs:0,
         etaMinutes:0,
         completed:true,
-        statusMessage:`Idle op complete: ${op.label}. Rewards ready.`,
-        rewards
-      };
+        statusMessage:`Idle op complete: ${op.label}. Rewards routed to idle cache.`
+      });
       state.selected={source:null,item:null};
       setCodex('Idle operation complete. Review rewards.');
       renderAll();
@@ -2475,8 +2460,8 @@ once:true`
       },
       idle:{
         key:'idleReward',
-        getItems:()=>state.idleOps.rewards || [],
-        clear:()=>{ state.idleOps.rewards=[]; }
+        getItems:()=>state.idleRewards || [],
+        clear:()=>{ state.idleRewards=[]; }
       }
     };
     const getRewardConfig=(source)=>Object.values(rewardSources).find(cfg=>cfg.key===source) || null;
@@ -3149,11 +3134,16 @@ once:true`
       dom.idleOps.innerHTML='';
       const gearMods=getGearMods();
       const vaultAccess=canAccessVault();
-      if(state.idleOps.active){
-        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
-        const startedAt=Number.isFinite(state.idleOps.startedAt) ? state.idleOps.startedAt : Date.now();
+      syncIdleSlots();
+      const idleRewards=state.idleRewards || [];
+      const activeSlots=state.idleOps.filter(slot=>slot.active);
+      const completedSlots=state.idleOps.filter(slot=>slot.completed);
+      activeSlots.forEach(slot=>{
+        const op=idleOperations.find(entry=>entry.id===slot.id);
+        if(!op) return;
+        const startedAt=Number.isFinite(slot.startedAt) ? slot.startedAt : Date.now();
         const elapsed=Math.max(0,(Date.now()-startedAt)/1000);
-        const total=Math.max(1,state.idleOps.durationMs/1000);
+        const total=Math.max(1,slot.durationMs/1000);
         const pctDone=clamp((elapsed/total)*100,0,100);
         const card=document.createElement('div');
         card.className='op-card';
@@ -3168,92 +3158,106 @@ once:true`
         meta.textContent=`ETA ${formatMinutesPrecise(remainingMinutes)} · ${op.desc}`;
         const signal=document.createElement('div');
         signal.className='op-meta';
-        signal.textContent=state.idleOps.statusMessage || 'Operation underway.';
+        signal.textContent=slot.statusMessage || 'Operation underway.';
         card.appendChild(title);
         card.appendChild(progress);
         card.appendChild(meta);
         card.appendChild(signal);
         dom.idleOps.appendChild(card);
-        return;
-      }
-      if(state.idleOps.completed){
-        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
+      });
+      completedSlots.forEach((slot,index)=>{
+        const op=idleOperations.find(entry=>entry.id===slot.id);
         const card=document.createElement('div');
         card.className='op-card';
         const title=document.createElement('div');
         title.innerHTML=`<b>${op?.label || 'Idle operation'}</b> · complete`;
         const meta=document.createElement('div');
         meta.className='op-meta';
-        meta.textContent=state.idleOps.statusMessage || 'Rewards ready to review.';
+        meta.textContent=slot.statusMessage || 'Rewards routed to idle cache.';
         card.appendChild(title);
         card.appendChild(meta);
-        const rewardsWrap=document.createElement('div');
-        rewardsWrap.className='item-grid';
-        const rewards=state.idleOps.rewards || [];
-        if(rewards.length){
-          groupItems(rewards).forEach(({id,count,data})=>{
-            const row=buildItemRow({id,count,data,source:'idleReward'});
-            rewardsWrap.appendChild(row);
-            const actions=document.createElement('div');
-            actions.className='inline-actions';
-            const packBtn=document.createElement('button');
-            packBtn.textContent='Take one';
-            packBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
-            packBtn.onclick=()=>claimRewardToInventory('idleReward',id);
-            actions.appendChild(packBtn);
-            const stackBtn=document.createElement('button');
-            stackBtn.textContent='Take stack';
-            stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
-            stackBtn.onclick=()=>claimRewardStackToInventory('idleReward',id);
-            actions.appendChild(stackBtn);
-            if(data.slot){
-              const equipBtn=document.createElement('button');
-              equipBtn.textContent='Equip';
-              equipBtn.disabled=!canEquipItem(id,'idleReward').ok;
-              equipBtn.onclick=()=>equipRewardItem('idleReward',id);
-              actions.appendChild(equipBtn);
-            }
-            const vaultBtn=document.createElement('button');
-            vaultBtn.textContent='Vault';
-            vaultBtn.disabled=!vaultAccess || !hasCapacityFor(state.stash.items,state.stashLimit,id,1);
-            vaultBtn.title=vaultAccess ? '' : vaultBlockedMessage;
-            vaultBtn.onclick=()=>claimRewardToVault('idleReward',id);
-            actions.appendChild(vaultBtn);
-            const scrapBtn=document.createElement('button');
-            scrapBtn.textContent='Break down';
-            scrapBtn.onclick=()=>scrapRewardItem('idleReward',id);
-            actions.appendChild(scrapBtn);
-            const leaveBtn=document.createElement('button');
-            leaveBtn.textContent='Leave';
-            leaveBtn.onclick=()=>leaveRewardItem('idleReward',id);
-            actions.appendChild(leaveBtn);
-            rewardsWrap.appendChild(actions);
-          });
-        }else{
-          const empty=document.createElement('div');
-          empty.className='muted-box';
-          empty.textContent='Rewards resolved. Close the operation to dispatch again.';
-          rewardsWrap.appendChild(empty);
-        }
-        card.appendChild(rewardsWrap);
         const footer=document.createElement('div');
         footer.className='op-actions';
-        if(rewards.length){
-          const leaveAll=document.createElement('button');
-          leaveAll.textContent='Leave all rewards';
-          leaveAll.onclick=()=>clearRewardSource('idleReward');
-          footer.appendChild(leaveAll);
-        }
         const closeBtn=document.createElement('button');
-        closeBtn.textContent='Close operation';
-        closeBtn.disabled=rewards.length>0;
-        closeBtn.onclick=closeIdleOp;
+        closeBtn.textContent='Clear slot';
+        closeBtn.disabled=idleRewards.length>0;
+        closeBtn.title=idleRewards.length>0 ? 'Resolve idle rewards before clearing slots.' : '';
+        closeBtn.onclick=()=>closeIdleOp(state.idleOps.indexOf(slot));
         footer.appendChild(closeBtn);
         card.appendChild(footer);
         dom.idleOps.appendChild(card);
+      });
+      if(idleRewards.length){
+        const rewardCard=document.createElement('div');
+        rewardCard.className='op-card';
+        const title=document.createElement('div');
+        title.innerHTML='<b>Idle rewards cache</b> · ready';
+        const meta=document.createElement('div');
+        meta.className='op-meta';
+        meta.textContent='Resolve idle rewards before dispatching again.';
+        rewardCard.appendChild(title);
+        rewardCard.appendChild(meta);
+        const rewardsWrap=document.createElement('div');
+        rewardsWrap.className='item-grid';
+        groupItems(idleRewards).forEach(({id,count,data})=>{
+          const row=buildItemRow({id,count,data,source:'idleReward'});
+          rewardsWrap.appendChild(row);
+          const actions=document.createElement('div');
+          actions.className='inline-actions';
+          const packBtn=document.createElement('button');
+          packBtn.textContent='Take one';
+          packBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,1);
+          packBtn.onclick=()=>claimRewardToInventory('idleReward',id);
+          actions.appendChild(packBtn);
+          const stackBtn=document.createElement('button');
+          stackBtn.textContent='Take stack';
+          stackBtn.disabled=!hasCapacityFor(state.inventory,getBackpackLimit(),id,count);
+          stackBtn.onclick=()=>claimRewardStackToInventory('idleReward',id);
+          actions.appendChild(stackBtn);
+          if(data.slot){
+            const equipBtn=document.createElement('button');
+            equipBtn.textContent='Equip';
+            equipBtn.disabled=!canEquipItem(id,'idleReward').ok;
+            equipBtn.onclick=()=>equipRewardItem('idleReward',id);
+            actions.appendChild(equipBtn);
+          }
+          const vaultBtn=document.createElement('button');
+          vaultBtn.textContent='Vault';
+          vaultBtn.disabled=!vaultAccess || !hasCapacityFor(state.stash.items,state.stashLimit,id,1);
+          vaultBtn.title=vaultAccess ? '' : vaultBlockedMessage;
+          vaultBtn.onclick=()=>claimRewardToVault('idleReward',id);
+          actions.appendChild(vaultBtn);
+          const scrapBtn=document.createElement('button');
+          scrapBtn.textContent='Break down';
+          scrapBtn.onclick=()=>scrapRewardItem('idleReward',id);
+          actions.appendChild(scrapBtn);
+          const leaveBtn=document.createElement('button');
+          leaveBtn.textContent='Leave';
+          leaveBtn.onclick=()=>leaveRewardItem('idleReward',id);
+          actions.appendChild(leaveBtn);
+          rewardsWrap.appendChild(actions);
+        });
+        rewardCard.appendChild(rewardsWrap);
+        const footer=document.createElement('div');
+        footer.className='op-actions';
+        const leaveAll=document.createElement('button');
+        leaveAll.textContent='Leave all rewards';
+        leaveAll.onclick=()=>clearRewardSource('idleReward');
+        footer.appendChild(leaveAll);
+        rewardCard.appendChild(footer);
+        dom.idleOps.appendChild(rewardCard);
       }
-      const blockedDispatch=state.idleOps.active || state.idleOps.completed;
-      idleOperations.forEach(op=>{
+      const availableIdleOps=idleOperations.filter(op=>!op.unlockFlag || state.flags.has(op.unlockFlag));
+      const hasOpenSlot=state.idleOps.some(slot=>!slot.active && !slot.completed);
+      const blockedDispatch=idleRewards.length>0 || !hasOpenSlot;
+      if(!availableIdleOps.length){
+        const locked=document.createElement('div');
+        locked.className='muted-box';
+        locked.textContent='Idle dispatches locked. Complete special missions to unlock them.';
+        dom.idleOps.appendChild(locked);
+        return;
+      }
+      availableIdleOps.forEach(op=>{
         const card=document.createElement('div');
         card.className='op-card';
         const title=document.createElement('div');
@@ -3264,15 +3268,18 @@ once:true`
         meta.textContent=`${op.desc} · ${formatMinutesPrecise(duration)}`;
         const cost=document.createElement('div');
         cost.className='op-meta';
-        cost.textContent=`Cost: ${formatCost(op.cost)} · Reward: ${op.reward}`;
+        const xpLabel=op.xp ? ` · XP ${op.xp}` : '';
+        cost.textContent=`Cost: ${formatCost(op.cost)} · Reward: ${op.reward}${xpLabel}`;
         const actions=document.createElement('div');
         actions.className='op-actions';
         const btn=document.createElement('button');
         btn.textContent='Dispatch';
         btn.onclick=()=>startIdleOp(op.id);
         if(blockedDispatch || !canAfford(op.cost)) btn.disabled=true;
-        if(state.idleOps.completed && (state.idleOps.rewards?.length||0)>0){
+        if(idleRewards.length>0){
           btn.title='Resolve idle rewards before dispatching again.';
+        }else if(!hasOpenSlot){
+          btn.title='All idle dispatch slots are in use.';
         }
         actions.appendChild(btn);
         card.appendChild(title);
@@ -3450,6 +3457,10 @@ once:true`
     }
 
     function renderZone(){
+      const exp=expansions[state.zone.id];
+      if(exp){
+        state.zone.risk=getZoneRiskForExp(exp,state.zone.risk);
+      }
       const scene=ensureZoneScene(state.zone);
       dom.zoneTitle.textContent=scene?.title ? `${state.zone.name} · ${scene.title}` : state.zone.name;
       dom.zoneDesc.textContent=scene?.desc || state.zone.desc;
@@ -3519,6 +3530,8 @@ once:true`
           const btn=document.createElement('button');
           const questFlag=quest.flag || quest.id;
           const completed=quest.once && questFlag && state.flags.has(questFlag);
+          const requiresFlag=quest.requires;
+          const blockedByRequirement=requiresFlag && !state.flags.has(requiresFlag);
           const label=quest.title || 'Local contract';
           const time=quest.time || 10;
           const risk=quest.risk || state.zone.risk;
@@ -3538,6 +3551,9 @@ once:true`
           if(completed){
             btn.disabled=true;
             btn.title='Contract complete.';
+          }else if(blockedByRequirement){
+            btn.disabled=true;
+            btn.title='Complete the prerequisite contract to unlock this.';
           }else if(state.mission.active || state.travel.active || !canAfford({energy,keys:keyCost})){
             btn.disabled=true;
           }
@@ -4031,7 +4047,7 @@ once:true`
         complications.push({desc:'Radiation spike makes your skin crawl.',effects:'rads+1,hp-2'});
       }
       const hit=complications[Math.floor(Math.random()*complications.length)];
-      applyEffects(hit.effects,'fail');
+      applyEffects(hit.effects,'fail',{damageSource:hit.desc});
       logMsg(`Complication (${source}): ${hit.desc}`);
     }
 
@@ -4039,6 +4055,8 @@ once:true`
       if(!effectStr) return;
       updateRadShield();
       const deferItemsTo=Array.isArray(options.deferItemsTo) ? options.deferItemsTo : null;
+      let hpLoss=0;
+      let sawLog=false;
       effectStr.split(',').forEach(token=>{
         token=token.trim(); if(!token) return;
         if(token.startsWith('item:')){
@@ -4053,9 +4071,16 @@ once:true`
           }
           return;
         }
-        if(token.startsWith('flag:')){ state.flags.add(token.slice(5)); return; }
+        if(token.startsWith('flag:')){
+          const flag=token.slice(5);
+          state.flags.add(flag);
+          if(flag==='ganglands-telecom'){
+            syncIdleSlots();
+          }
+          return;
+        }
         if(token.startsWith('note:')){ setCodex(token.slice(5)); return; }
-        if(token.startsWith('log:')){ logMsg(token.slice(4)); return; }
+        if(token.startsWith('log:')){ sawLog=true; logMsg(token.slice(4)); return; }
         const radPercentMatch=token.match(/^rads([+-]\d+)%$/i);
         if(radPercentMatch){
           const percent=Number(radPercentMatch[1]);
@@ -4073,7 +4098,10 @@ once:true`
         const match=token.match(/([a-zA-Z]+)([+-]\d+)/);
         if(match){
           const stat=match[1]; const delta=Number(match[2]);
-          if(stat==='hp') state.hp=clamp(state.hp+delta,0,state.maxHp);
+          if(stat==='hp'){
+            if(delta<0) hpLoss+=delta;
+            state.hp=clamp(state.hp+delta,0,state.maxHp);
+          }
           else if(stat==='stamina') state.stamina=clamp(state.stamina+delta,0,state.maxStamina);
           else if(stat==='morale') state.morale=clamp(state.morale+delta,0,state.maxMorale);
           else if(stat==='hunger') state.hunger=clamp(state.hunger+delta,0,state.maxHunger);
@@ -4091,6 +4119,10 @@ once:true`
           else if(stat==='backpack') state.backpackLimit=Math.max(0,state.backpackLimit+delta);
         }
       });
+      if(hpLoss<0 && !sawLog){
+        const reason=options.damageSource ? options.damageSource : 'Damage taken';
+        logMsg(`Signal log: ${reason} (-${Math.abs(hpLoss)} HP).`);
+      }
       if(outcome==='fail' && state.hp<=0){
         logMsg('Emergency evac: you collapse and lose momentum.');
         state.hp=clamp(40,1,state.maxHp);
@@ -4120,6 +4152,11 @@ once:true`
           const drop=rollLootDrop(effectiveRisk,lootBonus);
           addItemCopies(rewards,drop.id,drop.count);
         }
+        if(location?.id==='abandoned_mall' && state.flags.has('mall-power')){
+          const bonusFood=['ration bar','field rations','ember ration','water canister'];
+          const bonus=bonusFood[Math.floor(Math.random()*bonusFood.length)];
+          addItemCopies(rewards,bonus,1);
+        }
         if(deferItemsTo){
           deferItemsTo.push(...rewards);
         }else{
@@ -4132,7 +4169,7 @@ once:true`
         }
         logMsg(`✓ ${raid.label} succeeded. Rewards secured.`);
       }else{
-        applyEffects('hp-6,morale-4,temp-2','fail');
+        applyEffects('hp-6,morale-4,temp-2','fail',{damageSource:`${raid.label} setback`});
         rollComplication('raid');
         logMsg(`✖ ${raid.label} failed. You limp back empty-handed.`);
       }
@@ -4221,6 +4258,9 @@ once:true`
       }
       if(outcome==='success' && pending.flag && pending.once){
         state.flags.add(pending.flag);
+        if(pending.flag==='ganglands-telecom'){
+          syncIdleSlots();
+        }
       }
       state.mission.completed=true;
       state.mission.success=outcome==='success';
@@ -4479,7 +4519,7 @@ once:true`
         pendingResolution:null,
         xpReward:computeMissionXp(raidLike.risk,raidLike.time),
         rewardEffects:{success:quest.success||'',fail:quest.fail||''},
-        questMeta:{flag:questFlag,once:quest.once},
+        questMeta:{flag:questFlag,once:quest.once,forceCombat:quest.combat},
         combat:null,
         sceneTarget:null
       };
@@ -4641,6 +4681,10 @@ once:true`
         once:missionType==='contract' ? state.mission.questMeta?.once : false
       };
       preparePendingResolution(pending,rewards);
+      if(missionType==='contract' && state.mission.questMeta?.forceCombat){
+        launchCombatFromPending(pending);
+        return;
+      }
       if(shouldTriggerCombat(effectiveRisk)){
         launchCombatFromPending(pending);
         return;
@@ -4854,10 +4898,11 @@ once:true`
           setCodex(`${exp.meta.name} unlocked. Transit cleared.`);
         }
         const targetScene=exp.door?.target || Object.keys(exp.scenes || {})[0] || null;
+        const zoneRisk=getZoneRiskForExp(exp,exp.door?.risk || 'low');
         const target={
           id:exp.meta.id,
           name:exp.meta.name,
-          risk:exp.door?.risk || 'low',
+          risk:zoneRisk,
           desc:exp.door?.desc || exp.door?.hint || 'Salvage zone marked by strange chatter.',
           sceneId:targetScene
         };
@@ -4968,8 +5013,10 @@ once:true`
           else currentScene[key]=value;
         }else if(scope==='quest' && currentQuest){
           if(key==='desc') currentQuest.desc += (currentQuest.desc?' ':'') + value;
-          else if(key==='time') currentQuest.time=Number(value || 10);
+          else if(['time','energy','loot','key'].includes(key)) currentQuest[key]=Number(value || 0);
           else if(key==='once') currentQuest.once=value !== 'false';
+          else if(key==='combat') currentQuest.combat=value !== 'false';
+          else if(key==='requires') currentQuest.requires=value;
           else currentQuest[key]=value;
         }else if(scope==='mission' && currentMission){
           if(key==='desc') currentMission.desc += (currentMission.desc?' ':'') + value;
@@ -5105,19 +5152,22 @@ once:true`
     }
 
     function normalizeIdleTiming(now){
-      if(!state.idleOps.active) return;
-      const startedAt=Number.isFinite(state.idleOps.startedAt) ? state.idleOps.startedAt : null;
-      if(!Number.isFinite(startedAt)){
-        state.idleOps.startedAt=now;
-      }
-      const durationMs=Number(state.idleOps.durationMs);
-      if(!Number.isFinite(durationMs) || durationMs<=0){
-        const op=idleOperations.find(entry=>entry.id===state.idleOps.id);
-        if(op){
-          const duration=getIdleDurationMinutes(op,getGearMods());
-          state.idleOps.durationMs=duration*60000;
+      syncIdleSlots();
+      state.idleOps.forEach(slot=>{
+        if(!slot.active) return;
+        const startedAt=Number.isFinite(slot.startedAt) ? slot.startedAt : null;
+        if(!Number.isFinite(startedAt)){
+          slot.startedAt=now;
         }
-      }
+        const durationMs=Number(slot.durationMs);
+        if(!Number.isFinite(durationMs) || durationMs<=0){
+          const op=idleOperations.find(entry=>entry.id===slot.id);
+          if(op){
+            const duration=getIdleDurationMinutes(op,getGearMods());
+            slot.durationMs=duration*60000;
+          }
+        }
+      });
     }
 
     function updateTimers(){
@@ -5144,26 +5194,32 @@ once:true`
       if(state.travel.active){
         renderTravelStatus();
       }
-      if(state.idleOps.active){
+      const hasActiveIdle=state.idleOps.some(slot=>slot.active);
+      if(hasActiveIdle){
         const now=Date.now();
         normalizeIdleTiming(now);
-        const elapsed=now-(state.idleOps.startedAt || now);
-        if(elapsed>=state.idleOps.durationMs){
-          completeIdleOp();
-          return;
-        }
+        state.idleOps.forEach(slot=>{
+          if(!slot.active) return;
+          const elapsed=now-(slot.startedAt || now);
+          if(elapsed>=slot.durationMs){
+            completeIdleOp(slot);
+          }
+        });
         renderIdleOps();
       }
     }
 
     function ambientTick(){
       tickTime(4);
-      if(state.idleOps.active){
-        const elapsed=Date.now()-state.idleOps.startedAt;
-        if(elapsed>=state.idleOps.durationMs){
-          completeIdleOp();
-          return;
-        }
+      const idleNow=Date.now();
+      if(state.idleOps.some(slot=>slot.active)){
+        state.idleOps.forEach(slot=>{
+          if(!slot.active) return;
+          const elapsed=idleNow-(slot.startedAt || idleNow);
+          if(elapsed>=slot.durationMs){
+            completeIdleOp(slot);
+          }
+        });
       }
       const gearMods=getGearMods();
       state.energy=clamp(state.energy+4+(gearMods.energyRegen||0),0,state.maxEnergy);
@@ -5178,21 +5234,21 @@ once:true`
         state.bodyTemp=clamp(state.bodyTemp-loss,BODY_TEMP_MIN,BODY_TEMP_MAX);
       }
       if(state.hunger>=90){
-        applyEffects('hp-3,morale-2','fail');
+        applyEffects('hp-3,morale-2','fail',{damageSource:'Starvation pangs'});
         logMsg('Starvation gnaws at you while you hesitate.');
       }
       if(state.thirst>=90){
-        applyEffects('hp-4,stamina-5','fail');
+        applyEffects('hp-4,stamina-5','fail',{damageSource:'Dehydration strain'});
         logMsg('Dehydration blurs your vision.');
       }
       if(state.bodyTemp<=92){
-        applyEffects('hp-2,stamina-3','fail');
+        applyEffects('hp-2,stamina-3','fail',{damageSource:'Cold exposure'});
         if(state.timeMinutes%60===0){
           logMsg('Cold seeps into your limbs. Find shelter or warm up soon.');
         }
       }
       if(state.bodyTemp>=103){
-        applyEffects('hp-2,morale-2','fail');
+        applyEffects('hp-2,morale-2','fail',{damageSource:'Heat exhaustion'});
         if(state.timeMinutes%60===0){
           logMsg('Heat haze clouds your focus. Cool down before it worsens.');
         }

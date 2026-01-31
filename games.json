@@ -1,34 +1,34 @@
 {
   "expansions": [
     {
-      "id": "town",
-      "name": "Titan Mart Megastore",
-      "file": "expansions/town.txt"
-    },
-    {
       "id": "safehouse",
-      "name": "Harbor Barter Shelter",
+      "name": "Safe House",
       "file": "expansions/safehouse.txt"
     },
     {
-      "id": "forest",
-      "name": "Blacksite Service Annex",
-      "file": "expansions/forest.txt"
-    },
-    {
-      "id": "portland_slums",
-      "name": "Rubbletide Shanty Row",
-      "file": "expansions/portland_slums.txt"
-    },
-    {
-      "id": "corporate_complex",
-      "name": "Arclight Corporate High-Rise",
-      "file": "expansions/corporate_complex.txt"
+      "id": "underground_bunker",
+      "name": "Abandoned Underground Bunker System",
+      "file": "expansions/underground_bunker.txt"
     },
     {
       "id": "metro_ganglands",
-      "name": "Metro Ganglands",
+      "name": "Ganglands Metro Shanty",
       "file": "expansions/metro_ganglands.txt"
+    },
+    {
+      "id": "government_facility",
+      "name": "Abandoned Government Facility",
+      "file": "expansions/government_facility.txt"
+    },
+    {
+      "id": "medical_center",
+      "name": "Medical Center",
+      "file": "expansions/medical_center.txt"
+    },
+    {
+      "id": "abandoned_mall",
+      "name": "Abandoned Mall",
+      "file": "expansions/abandoned_mall.txt"
     }
   ]
 }

@@ -1,49 +1,34 @@
 @expansion
 id:safehouse
-name:Harbor Barter Shelter
-summary:A fortified shelter wedged into a river pier. Bunks, a barter counter, and a hand-painted notice wall keep the community glued together.
+name:Safe House
+summary:A reinforced bunker hub with bunks, a trade counter, and a humming generator wall. No loot runs here—just recovery and planning.
 shop:true
 
 @door
-label:Harbor Shelter Gate
-hint:rest, barter, recovery
-note:The gate locks behind you. Warm light and stew steam bleed into the corridor.
+label:Safe House Airlock
+hint:rest, shop, recovery
+risk:low
+note:The airlock seals and the bunker hum steadies your breathing.
 target:commons
 
 @scene commons
-title:Harbor Commons
-desc:Rows of bunks glow with heat lamps. A barter counter sits beside a wall of hand-scrawled schedules.
-tags:Safe / Barter
-option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+10,stamina+12,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
-option:Boil a meal at the heater => commons | risk:low | time:5 | reward:hot meal | success:hunger-18,thirst-6,temp+2,log:Steam and salt do the job. | fail:hunger-4,log:The burner sputters out.
-option:Update the shelter logbook => commons | risk:low | time:4 | reward:morale boost | success:morale+5,flag:horizon-log,log:New names go on the board. Old names come off. | fail:morale-2,log:The pen runs dry.
+title:Safe House Commons
+desc:Warm lights, clean water, and the trade counter keep the crew steady between runs.
+tags:Safe / Hub
+option:Rest in the bunks => commons | risk:low | time:6 | reward:rested | success:hp+12,stamina+14,morale+6,log:The bunk warmth sinks into your bones. | fail:morale-2,log:Sleep won't come tonight.
+option:Reset the loadout bench => commons | risk:low | time:5 | reward:prep | success:energy+6,log:You tighten straps and reset your kit. | fail:stamina-2,log:The bench clamps fail you.
 
 @quest
-id:shelter-vent
-title:Seal the intake vents
-desc:Patch a cracked intake valve before the next storm rolls through.
+id:safehouse-vents
+title:Fix the ventilation system
+desc:Patch the corroded vent intake so the bunker can cycle clean air again.
 risk:medium
-time:8
-energy:10
-loot:2
-lootType:shelter supplies
-reward:vent patches
-success:item:thermal wrap,item:spare filter,credits+10,flag:shelter-vent
-fail:temp-3,morale-4
-flag:shelter-vent
-once:true
-
-@quest
-id:shelter-reserve
-title:Audit the reserve lockers
-desc:Count and re-tag the emergency lockers in the lower hall before trade night.
-risk:low
-time:7
-energy:8
+time:9
+energy:12
 loot:1
-lootType:stored rations
-reward:bonus rations
-success:item:ration bar,item:water flask,credits+6,flag:shelter-reserve
-fail:morale-2
-flag:shelter-reserve
+lootType:maintenance cache
+reward:ventilation restored
+success:item:spare filter,credits+8,morale+6,flag:safehouse-vents,log:The fans spin up and the air clears. Maintenance dispatches are back online.
+fail:temp-3,morale-4
+flag:safehouse-vents
 once:true
