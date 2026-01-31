@@ -9,6 +9,7 @@
     color-scheme: dark;
     --tab-bar-height:64px;
     --header-offset:0px;
+    --tab-stick-offset:0px;
 
     /* CORE TERMINAL PALETTE */
     --bg:#020202;
@@ -498,7 +499,7 @@
     background:
       linear-gradient(180deg, rgba(10,12,10,0.70), rgba(0,0,0,0.60));
     position:sticky;
-    top:var(--header-offset);
+    top:var(--tab-stick-offset);
     width:100%;
     min-height:var(--tab-bar-height);
     z-index:6;
@@ -522,6 +523,10 @@
 
   .tab-content{display:none;padding:12px;}
   .tab-content.active{display:block;}
+
+  .tab-dock{
+    height:0;
+  }
 
   .subtabs{
     display:flex;
@@ -866,6 +871,8 @@
         </div>
       </div>
     </section>
+
+    <div id="tabDock" class="tab-dock" aria-hidden="true"></div>
 
     <div class="tabs">
       <div class="tab-buttons">
@@ -1855,11 +1862,27 @@ once:true`
       }
       renderCodex();
     };
-    const updateHeaderOffset=()=>{
+    const updateTabDockOffset=()=>{
       const header=document.querySelector('header');
-      if(!header) return;
-      const offset=header.offsetHeight+12;
-      document.documentElement.style.setProperty('--header-offset',`${offset}px`);
+      const dock=document.getElementById('tabDock');
+      const headerOffset=header ? header.offsetHeight+12 : 0;
+      document.documentElement.style.setProperty('--header-offset',`${headerOffset}px`);
+      if(!dock){
+        document.documentElement.style.setProperty('--tab-stick-offset',`${headerOffset}px`);
+        return;
+      }
+      const dockTop=Math.round(dock.getBoundingClientRect().top);
+      const stickOffset=dockTop>headerOffset ? dockTop : headerOffset;
+      document.documentElement.style.setProperty('--tab-stick-offset',`${stickOffset}px`);
+    };
+    let dockTicking=false;
+    const requestTabDockUpdate=()=>{
+      if(dockTicking) return;
+      dockTicking=true;
+      requestAnimationFrame(()=>{
+        updateTabDockOffset();
+        dockTicking=false;
+      });
     };
     const getIdleSlotLimit=()=>state.flags.has('ganglands-telecom') ? 2 : 1;
     const syncIdleSlots=()=>{
@@ -5219,8 +5242,9 @@ once:true`
     }
 
     function initGame(){
-      updateHeaderOffset();
-      window.addEventListener('resize',updateHeaderOffset);
+      updateTabDockOffset();
+      window.addEventListener('resize',requestTabDockUpdate);
+      window.addEventListener('scroll',requestTabDockUpdate,{passive:true});
       renderAll();
       loadGames();
       showIntroModal({returning:Boolean(savedState)});
