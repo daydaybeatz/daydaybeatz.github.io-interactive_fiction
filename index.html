@@ -232,6 +232,18 @@
     text-shadow: var(--glow-strong);
     animation: cursorBlink 0.9s infinite steps(1,end);
   }
+  .title-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .pause-toggle{
+    padding:6px 12px;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
   .tagline{
     font-size:12px;
     color:rgba(184,255,207,0.75);
@@ -875,7 +887,10 @@
   <div id="app">
     <header>
       <div>
-        <div class="title">Zones - fight, loot, survive.</div>
+        <div class="title-row">
+          <div class="title">Zones - fight, loot, survive.</div>
+          <button id="pauseToggle" class="pause-toggle" type="button" aria-pressed="false">Pause</button>
+        </div>
         <div class="tagline">Pick zones, run salvage loops, and sort rewards into gear, stash, or scrap.</div>
       </div>
       <div class="pill">Build #: 0.3</div>
@@ -888,10 +903,7 @@
           <div id="stats"></div>
           <div class="meta" id="meta"></div>
         </div>
-        <div class="rows">
-          <div class="excursion-status" id="excursionStatus"></div>
-          <div class="muted-box" id="tempoHint"></div>
-        </div>
+        <div class="rows"></div>
       </div>
     </section>
 
@@ -1108,6 +1120,8 @@
       idleRewards:[],
       flags:new Set(),
       elderAdviceIndex:0,
+      paused:false,
+      pausedAt:null,
       lastHungerDamageAt:null,
       lastThirstDamageAt:null,
       zone:{id:'drift-yard',name:'Drift Yard',risk:'low',desc:'Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.',sceneId:null},
@@ -1183,6 +1197,12 @@
         : 0;
       const radShieldUntil=Number(merged.radShieldUntil);
       merged.radShieldUntil=Number.isFinite(radShieldUntil) ? radShieldUntil : null;
+      merged.paused=Boolean(merged.paused);
+      const pausedAt=Number(merged.pausedAt);
+      merged.pausedAt=Number.isFinite(pausedAt) ? pausedAt : null;
+      if(!merged.paused){
+        merged.pausedAt=null;
+      }
       return merged;
     };
     const loadSavedState=()=>{
@@ -2033,8 +2053,7 @@ once:true`
       introActions:document.getElementById('introActions'),
       stats:document.getElementById('stats'),
       meta:document.getElementById('meta'),
-      excursionStatus:document.getElementById('excursionStatus'),
-      tempoHint:document.getElementById('tempoHint'),
+      pauseToggle:document.getElementById('pauseToggle'),
       doors:document.getElementById('doors'),
       doorsHint:document.getElementById('doorsHint'),
       zoneTitle:document.getElementById('zoneTitle'),
@@ -3895,12 +3914,21 @@ once:true`
       btn.onclick=()=>setScreen(btn.dataset.screen);
     });
     dom.enterLocations.onclick=()=>setScreen('locations');
-
-    function renderExcursionStatus(){
-      const scene=ensureZoneScene(state.zone);
-      const locationLabel=scene?.title ? `${state.zone.name} · ${scene.title}` : state.zone.name;
-      dom.excursionStatus.innerHTML=`<b>Loop status:</b> Location ${locationLabel} · Energy ${state.energy}/${state.maxEnergy} · Backpack ${getBackpackUsage()}/${getBackpackLimit()} · Stash ${getStashUsage()}/${state.stashLimit} · Loadout ${getEquipmentUsageCount()}/${getEquipmentSlotTotal()}.`;
-      dom.tempoHint.textContent='Run missions to earn XP, then review rewards and swap in better gear.';
+    if(dom.pauseToggle){
+      dom.pauseToggle.onclick=()=>{
+        if(state.paused){
+          const delta=Date.now()-(state.pausedAt || Date.now());
+          state.paused=false;
+          state.pausedAt=null;
+          adjustTimersForPause(delta);
+          setCodex('Gameplay resumed.');
+        }else{
+          state.paused=true;
+          state.pausedAt=Date.now();
+          setCodex('Gameplay paused.');
+        }
+        renderAll();
+      };
     }
 
     function renderHubAccess(){
@@ -3909,6 +3937,12 @@ once:true`
         : state.mission.active
           ? 'Mission resolved. Review rewards, then redeploy from the locations hub.'
           : 'Ops bay is live. Step into the locations hub to pick a gate and launch a raid.';
+    }
+
+    function renderPauseToggle(){
+      if(!dom.pauseToggle) return;
+      dom.pauseToggle.textContent=state.paused ? 'Play' : 'Pause';
+      dom.pauseToggle.setAttribute('aria-pressed',state.paused ? 'true' : 'false');
     }
 
     function renderZone(){
@@ -4820,22 +4854,23 @@ once:true`
       const gearMods=getGearMods();
       const combat=state.mission.combat || initCombatState(profile);
       const rewards=[];
-      const lootPulls=success ? 2+Math.floor(profile.difficulty) : 1;
-      for(let i=0;i<lootPulls;i++){
-        const drop=rollLootDrop(profile.risk,gearMods.lootBonus||0);
-        addItemCopies(rewards,drop.id,drop.count);
+      let credited=0;
+      if(success){
+        const lootPulls=2+Math.floor(profile.difficulty);
+        for(let i=0;i<lootPulls;i++){
+          const drop=rollLootDrop(profile.risk,gearMods.lootBonus||0);
+          addItemCopies(rewards,drop.id,drop.count);
+        }
+        credited=Math.max(6,Math.round((profile.difficulty*12)+(Math.random()*10)));
+        state.credits+=credited;
+        const xpBase=computeMissionXp(profile.risk,profile.time);
+        awardXp(xpBase,profile.enemyName);
       }
-      const creditReward=Math.max(6,Math.round((profile.difficulty*12)+(Math.random()*10)));
-      const credited=success ? creditReward : Math.round(creditReward*(fleeing?0.6:0.5));
-      state.credits+=credited;
-      const xpBase=computeMissionXp(profile.risk,profile.time);
-      const xpReward=success ? xpBase : Math.round(xpBase*(fleeing?0.7:0.6));
-      awardXp(xpReward,profile.enemyName);
       const summary=success
         ? `Hostiles down. You dealt ${Math.round(combat.totalDamageDealt)} and took ${Math.round(combat.totalDamageTaken)} damage. ${credited} credits recovered.`
         : fleeing
-          ? `You flee under fire after taking ${Math.round(combat.totalDamageTaken)} damage. Partial rewards recovered.`
-          : `You are overrun after taking ${Math.round(combat.totalDamageTaken)} damage and pull back to survive.`;
+          ? `You flee under fire after taking ${Math.round(combat.totalDamageTaken)} damage. No rewards recovered.`
+          : `You are overrun after taking ${Math.round(combat.totalDamageTaken)} damage and pull back to survive. No rewards recovered.`;
       return {success,rewards,summary};
     }
     function applyCombatConsumable(item){
@@ -5061,6 +5096,31 @@ once:true`
       }
     }
 
+    function applyCombatFailurePenalty(){
+      state.hp=clamp(50,0,state.maxHp);
+      state.hunger=clamp(15,0,state.maxHunger);
+      state.thirst=clamp(15,0,state.maxThirst);
+      state.credits=Math.max(0,Math.round(state.credits*0.9));
+    }
+
+    function failCombatMission(){
+      const lastLocation=state.mission.location ? {...state.mission.location} : null;
+      const shouldRestoreLocation=lastLocation && lastLocation.id !== state.zone.id;
+      resetMissionState();
+      state.selected={source:null,item:null};
+      if(shouldRestoreLocation){
+        state.zone=lastLocation;
+        clearMarketAccess();
+      }
+      setCodex('Combat failed. Mission aborted. Returning to the locations hub.');
+      setActiveTab('hub');
+      if(lastLocation){
+        setScreen('locations');
+      }else{
+        setScreen('main');
+      }
+    }
+
     function startMission(raid){
       const cost={energy:raid.energy,keys:raid.key||0};
       if(state.mission.active){
@@ -5135,22 +5195,28 @@ once:true`
         state.mission.rewards=result.rewards;
         state.mission.summary=result.summary;
         state.mission.statusMessage=result.summary;
-        if(state.hp<=0){
-          applyEffects('hp+35,morale-12,energy-18','fail');
+        if(!result.success || state.hp<=0){
           state.mission.success=false;
-          state.mission.summary='You collapse during the fight and are dragged to safety. Rewards are lost.';
-          state.mission.statusMessage=state.mission.summary;
           state.mission.rewards=[];
+          state.mission.summary='Combat failed. Mission aborted.';
+          state.mission.statusMessage=state.mission.summary;
+          if(state.mission.pendingResolution){
+            state.mission.pendingResolution.rewards=[];
+            resolvePendingMission('fail');
+          }
+          applyCombatFailurePenalty();
+          failCombatMission();
+          return;
         }
         if(state.mission.pendingResolution){
           const pendingRewards=state.mission.pendingResolution.rewards || [];
           pendingRewards.push(...result.rewards);
           state.mission.pendingResolution.rewards=pendingRewards;
           logMsg('Combat rewards secured. Continuing mission extraction.');
-          resolvePendingMission(result.success ? 'success' : 'fail');
+          resolvePendingMission('success');
           return;
         }
-        setCodex(result.success ? 'Combat resolved. Rewards ready to review.' : 'Combat resolved. Regroup before redeploying.');
+        setCodex('Combat resolved. Rewards ready to review.');
         setActiveTab('hub');
         state.screen='mission';
         renderAll();
@@ -5557,10 +5623,10 @@ once:true`
     }
 
     function renderAll(){
+      renderPauseToggle();
       renderBars();
       renderInventory();
       renderCrafting();
-      renderExcursionStatus();
       renderHubAccess();
       renderTravelStatus();
       renderMissionStatus();
@@ -5699,7 +5765,29 @@ once:true`
       });
     }
 
+    function adjustTimersForPause(deltaMs){
+      if(!Number.isFinite(deltaMs) || deltaMs<=0) return;
+      if(state.mission.active && !state.mission.completed){
+        if(Number.isFinite(state.mission.startedAt)) state.mission.startedAt+=deltaMs;
+        if(Number.isFinite(state.mission.endsAt)) state.mission.endsAt+=deltaMs;
+        if(Number.isFinite(state.mission.fleeEndsAt)) state.mission.fleeEndsAt+=deltaMs;
+        const combat=state.mission.combat;
+        if(combat){
+          if(Number.isFinite(combat.nextTickAt)) combat.nextTickAt+=deltaMs;
+          if(combat.consumable?.readyAt) combat.consumable.readyAt+=deltaMs;
+        }
+      }
+      if(state.travel.active && Number.isFinite(state.travel.endsAt)) state.travel.endsAt+=deltaMs;
+      state.idleOps.forEach(slot=>{
+        if(slot.active && Number.isFinite(slot.startedAt)) slot.startedAt+=deltaMs;
+      });
+      if(Number.isFinite(state.radShieldUntil)) state.radShieldUntil+=deltaMs;
+      if(Number.isFinite(state.lastHungerDamageAt)) state.lastHungerDamageAt+=deltaMs;
+      if(Number.isFinite(state.lastThirstDamageAt)) state.lastThirstDamageAt+=deltaMs;
+    }
+
     function updateTimers(){
+      if(state.paused) return;
       if(resolveTravelIfComplete()){
         renderAll();
       }
@@ -5739,6 +5827,7 @@ once:true`
     }
 
     function ambientTick(){
+      if(state.paused) return;
       tickTime(4);
       const idleNow=Date.now();
       if(state.idleOps.some(slot=>slot.active)){
