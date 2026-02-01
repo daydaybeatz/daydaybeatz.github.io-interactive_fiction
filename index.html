@@ -601,6 +601,26 @@
     text-shadow:0 0 10px rgba(0,183,255,0.25);
     letter-spacing:1px;
   }
+  .log-entry{
+    display:block;
+    padding:2px 0;
+  }
+  .log-entry--danger{
+    color:#ff4b5c;
+    text-shadow:0 0 10px rgba(255,75,92,0.35);
+  }
+  .log-entry--warning{
+    color:#ffd166;
+    text-shadow:0 0 10px rgba(255,209,102,0.3);
+  }
+  .log-entry--mission{
+    color:#7bff8b;
+    text-shadow:0 0 10px rgba(123,255,139,0.25);
+  }
+  .log-entry--character{
+    color:#ffad5a;
+    text-shadow:0 0 10px rgba(255,173,90,0.3);
+  }
 
   .signal-log{
     position:fixed;
@@ -2087,14 +2107,48 @@ once:true`
       const m=mins%60;const h=Math.floor(mins/60)%24;const suffix=h>=12?"PM":"AM";
       const hour=((h+11)%12+1);return `${hour}:${m.toString().padStart(2,'0')} ${suffix}`;
     }
+    const parseCodexEntry=(entry)=>{
+      const match=entry.match(/^x(\d+)\s+(.*)$/);
+      if(match){
+        return {count:Number(match[1]), text:match[2]};
+      }
+      return {count:1, text:entry};
+    };
+    const formatCodexEntry=(count,text)=>count>1 ? `x${count} ${text}` : text;
+    const getLogTone=(msg)=>{
+      const lower=msg.toLowerCase();
+      if(/hp-|\-\d+\s*hp|\bdamage\b|\bhit\b|\bwound\b|\binjur|\bharm\b|\bbleed\b/.test(lower)){
+        return 'danger';
+      }
+      if(/\bdanger\b|\bincoming\b|\bimminent\b|\bwarning\b|\bstarvation\b|\bdehydration\b|\bcold\b|\bheat haze\b|\bevacu|\bhostile contact\b/.test(lower)){
+        return 'warning';
+      }
+      if(/\belder\b|\badvisor\b|\bmercenary\b|\bcontact\b|\boperator\b|\bpatrol\b|\bsentry\b/.test(lower)){
+        return 'character';
+      }
+      if(/\bmission\b|\bcontract\b|\braid\b|\bidle\b|\bdispatch\b|\btransit\b|\barrived\b|\blevel up\b|\boperation\b|\bop\b/.test(lower)){
+        return 'mission';
+      }
+      return '';
+    };
+    const renderCodexEntry=(entry)=>{
+      const tone=getLogTone(entry);
+      const line=document.createElement('div');
+      line.className=tone ? `log-entry log-entry--${tone}` : 'log-entry';
+      line.textContent=entry;
+      return line;
+    };
     function renderCodex(){
       if(!dom.codex) return;
       const entries=state.codex.slice(-CODEX_VISIBLE_LIMIT);
       const latest=entries[entries.length-1] || '';
+      dom.codex.textContent='';
       if(state.codexExpanded){
-        dom.codex.textContent=entries.join('\n');
-      }else{
-        dom.codex.textContent=latest;
+        const fragment=document.createDocumentFragment();
+        entries.forEach(entry=>fragment.appendChild(renderCodexEntry(entry)));
+        dom.codex.appendChild(fragment);
+      }else if(latest){
+        dom.codex.appendChild(renderCodexEntry(latest));
       }
       if(dom.codexToggle){
         dom.codexToggle.textContent=state.codexExpanded ? 'Hide log' : 'Show last 20';
@@ -2102,6 +2156,15 @@ once:true`
     }
     const setCodex=(msg)=>{
       if(!msg) return;
+      const lastEntry=state.codex[state.codex.length-1];
+      if(lastEntry){
+        const parsed=parseCodexEntry(lastEntry);
+        if(parsed.text===msg){
+          state.codex[state.codex.length-1]=formatCodexEntry(parsed.count+1,msg);
+          renderCodex();
+          return;
+        }
+      }
       state.codex.push(msg);
       if(state.codex.length>CODEX_HISTORY_LIMIT){
         state.codex.splice(0,state.codex.length-CODEX_HISTORY_LIMIT);
