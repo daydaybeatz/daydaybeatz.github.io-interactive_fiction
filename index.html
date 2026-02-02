@@ -257,9 +257,9 @@
     box-shadow:0 0 8px rgba(57,255,20,0.6);
   }
   .pause-toggle.paused::before{
-    background:var(--amber);
-    box-shadow:0 0 10px rgba(255,176,0,0.65);
-    animation: pauseBlink 1.8s infinite ease-in-out;
+    background:#ffd84a;
+    box-shadow:0 0 10px rgba(255,216,74,0.7);
+    animation: pauseBlink 2.6s infinite ease-in-out;
   }
   .tagline{
     font-size:12px;
@@ -4201,10 +4201,17 @@ once:true`
       return parts.length ? `Rewards ${parts.join(' · ')}` : '';
     }
 
-    function buildMissionMeta({risk='low',time=8,energy,key,loot=0,lootType='',reward='',xp}={}){
+    function buildMissionMeta({risk='low',time=8,energy,key,loot=0,lootType='',reward='',xp,combatChance}={}){
       const parts=[`${risk} · ${formatDisplayMinutes(time)} min`];
       const rewardLabel=formatRewardEstimate({loot,lootType,reward,risk,time,xp});
       if(rewardLabel) parts.push(rewardLabel);
+      const failChance=Math.round(getFailBreakdown(risk).chance*100);
+      parts.push(`fail ${failChance}%`);
+      const resolvedCombatChance=Number.isFinite(combatChance)
+        ? clamp(combatChance,0,1)
+        : computeCombatChance(risk);
+      const combatPercent=Math.round(resolvedCombatChance*100);
+      parts.push(`combat risk ${combatPercent}%`);
       if(Number.isFinite(energy)){
         const costParts=[`${energy} energy`];
         if(key) costParts.push(`${key} key`);
@@ -4228,7 +4235,8 @@ once:true`
             time:option.time,
             loot:option.loot,
             lootType:option.lootType,
-            reward:option.reward
+            reward:option.reward,
+            combatChance:0
           });
           btn.innerHTML=`<span>${label}</span><span class="small">${meta}</span>`;
           btn.onclick=()=>startSceneAction(option);
@@ -4264,7 +4272,8 @@ once:true`
             key:keyCost,
             loot:quest.loot || 0,
             lootType:quest.lootType || '',
-            reward:quest.reward || ''
+            reward:quest.reward || '',
+            combatChance:quest.combat ? 1 : (Number.isFinite(quest.combatChance) ? quest.combatChance : undefined)
           });
           btn.innerHTML=`<span>${label}</span><span class="small">${meta}</span>`;
           btn.onclick=()=>runQuest(quest);
@@ -4295,7 +4304,8 @@ once:true`
               loot:raid.loot,
               lootType:raid.lootType,
               reward:raid.reward,
-              xp:raid.xp
+              xp:raid.xp,
+              combatChance:raid.combatChance
             });
             btn.innerHTML=`<span>${raid.label}</span><span class="small">${meta}</span>`;
             btn.onclick=()=>startMission(raid);
@@ -4330,7 +4340,8 @@ once:true`
             loot:raid.loot,
             lootType:raid.lootType,
             reward:raid.reward,
-            xp:raid.xp
+            xp:raid.xp,
+            combatChance:raid.combatChance
           });
           btn.innerHTML=`<span>${raid.label}</span><span class="small">${meta}</span>`;
           btn.onclick=()=>startMission(raid);
@@ -4346,7 +4357,8 @@ once:true`
           energy:10,
           loot:2+Math.floor(combatProfile.difficulty),
           lootType:'combat salvage',
-          xp:computeMissionXp(combatProfile.risk,combatProfile.time)
+          xp:computeMissionXp(combatProfile.risk,combatProfile.time),
+          combatChance:1
         });
         combatBtn.innerHTML=`<span>Engage hostiles</span><span class="small">${combatMeta}</span>`;
         combatBtn.onclick=startCombatMission;
@@ -4493,6 +4505,9 @@ once:true`
         return;
       }
       const raid=state.mission.raid;
+      if(!state.mission.completed){
+        normalizeMissionTiming(Date.now());
+      }
       const remainingMs=Math.max(0,state.mission.endsAt-Date.now());
       const totalMs=Math.max(1,state.mission.endsAt-state.mission.startedAt);
       const percent=clamp(((totalMs-remainingMs)/totalMs)*100,0,100);
@@ -4763,7 +4778,7 @@ once:true`
     }
 
     /* ================= GAMEPLAY ================= */
-    function computeFailChance(risk){
+    function getFailBreakdown(risk){
       const base=riskTable[risk] ?? 0.12;
       const gearMods=getGearMods();
       const radsPenalty=Math.min(0.08,state.rads*0.004);
@@ -4772,8 +4787,21 @@ once:true`
       const fatiguePenalty=state.stamina<30?0.04:0;
       const energyPenalty=state.energy<25?0.06:0;
       const tempPenalty=state.bodyTemp<94?0.07:(state.bodyTemp>102?0.05:0);
+      const contributions=[
+        {label:`${risk} threat density`,value:base},
+        {label:'Hunger cramps',value:hungerPenalty},
+        {label:'Thirst strain',value:thirstPenalty},
+        {label:'Fatigue drag',value:fatiguePenalty},
+        {label:'Low energy',value:energyPenalty},
+        {label:'Radiation exposure',value:radsPenalty},
+        {label:state.bodyTemp<94?'Cold exposure':'Heat stress',value:tempPenalty}
+      ].filter(entry=>entry.value>0);
+      const top=contributions.reduce((best,entry)=>entry.value>best.value?entry:best,{label:'Hazard spike',value:-1});
       const total=base + hungerPenalty + thirstPenalty + fatiguePenalty + energyPenalty + radsPenalty + tempPenalty - (gearMods.riskMod||0);
-      return clamp(total,0.05,0.75);
+      return {chance:clamp(total,0.05,0.75),reason:top.label};
+    }
+    function computeFailChance(risk){
+      return getFailBreakdown(risk).chance;
     }
 
     function tickTime(minutes){
@@ -4918,7 +4946,9 @@ once:true`
 
       const locationRisk=location?.risk || state.zone.risk;
       const effectiveRisk=(riskRank[raid.risk] >= riskRank[locationRisk]) ? raid.risk : locationRisk;
-      const failChance=computeFailChance(effectiveRisk);
+      const failBreakdown=getFailBreakdown(effectiveRisk);
+      const failChance=failBreakdown.chance;
+      const failReason=failBreakdown.reason;
       const roll=Math.random();
       const success=roll>failChance;
       state.bodyTemp=clamp(state.bodyTemp-1.1,BODY_TEMP_MIN,BODY_TEMP_MAX);
@@ -4948,9 +4978,9 @@ once:true`
       }else{
         applyEffects('hp-6,morale-4,temp-2','fail',{damageSource:`${raid.label} setback`});
         rollComplication('raid');
-        logMsg(`✖ ${raid.label} failed. You limp back empty-handed.`);
+        logMsg(`✖ ${raid.label} failed (${failReason}). You limp back empty-handed.`);
       }
-      return {success,rewards,effectiveRisk};
+      return {success,rewards,effectiveRisk,failChance,failReason};
     }
 
     const getRiskIndex=(risk)=>riskRank[risk] || riskRank.low;
@@ -5042,12 +5072,13 @@ once:true`
       state.mission.completed=true;
       state.mission.success=outcome==='success';
       state.mission.rewards=rewards;
+      const failDetail=pending.failReason ? ` Cause: ${pending.failReason}.` : '';
       state.mission.summary=outcome==='success'
         ? 'Extraction secured. Review rewards before closing the mission.'
-        : 'Extraction rough. Patch up before you re-deploy.';
+        : `Extraction rough. Patch up before you re-deploy.${failDetail}`;
       state.mission.statusMessage=outcome==='success'
         ? `Mission complete: ${pending.label}. Rewards ready.`
-        : `Mission failed: ${pending.label}.`;
+        : `Mission failed: ${pending.label}.${failDetail}`;
       state.mission.pendingResolution=null;
       setCodex(outcome==='success' ? 'Mission complete. Rewards ready to review.' : 'Mission failed. Recover and try again.');
       if(outcome==='success' && pending.sourceId===ELDER_MISSION_ID){
@@ -5346,7 +5377,7 @@ once:true`
       state.credits=Math.max(0,Math.round(state.credits*0.9));
     }
 
-    function failCombatMission(){
+    function failCombatMission(reason){
       const lastLocation=state.mission.location ? {...state.mission.location} : null;
       const shouldRestoreLocation=lastLocation && lastLocation.id !== state.zone.id;
       resetMissionState();
@@ -5355,7 +5386,8 @@ once:true`
         state.zone=lastLocation;
         clearMarketAccess();
       }
-      setCodex('Combat failed. Mission aborted. Returning to the locations hub.');
+      const reasonText=reason ? ` (${reason})` : '';
+      setCodex(`Combat failed${reasonText}. Mission aborted. Returning to the locations hub.`);
       setActiveTab('hub');
       if(lastLocation){
         setScreen('locations');
@@ -5439,16 +5471,18 @@ once:true`
         state.mission.summary=result.summary;
         state.mission.statusMessage=result.summary;
         if(!result.success || state.hp<=0){
+          const failReason=state.mission.fleeing ? 'Fled under fire' : 'Overrun by hostiles';
+          logMsg(`✖ ${raid.label} failed (${failReason}).`);
           state.mission.success=false;
           state.mission.rewards=[];
-          state.mission.summary='Combat failed. Mission aborted.';
+          state.mission.summary=`Combat failed (${failReason}). Mission aborted.`;
           state.mission.statusMessage=state.mission.summary;
           if(state.mission.pendingResolution){
             state.mission.pendingResolution.rewards=[];
             resolvePendingMission('fail');
           }
           applyCombatFailurePenalty();
-          failCombatMission();
+          failCombatMission(failReason);
           return;
         }
         if(state.mission.pendingResolution){
@@ -5469,7 +5503,9 @@ once:true`
       if(missionType==='scene'){
         const rewards=[];
         const effectiveRisk=raid.risk || state.zone.risk;
-        const failChance=computeFailChance(effectiveRisk);
+        const failBreakdown=getFailBreakdown(effectiveRisk);
+        const failChance=failBreakdown.chance;
+        const failReason=failBreakdown.reason;
         const success=Math.random()>failChance;
         const pending={
           label:raid.label,
@@ -5478,9 +5514,13 @@ once:true`
           xpReward:state.mission.xpReward,
           successEffects:state.mission.rewardEffects.success,
           failEffects:state.mission.rewardEffects.fail,
+          failReason,
           flag:null,
           once:false
         };
+        if(!success){
+          logMsg(`✖ ${raid.label} failed (${failReason}).`);
+        }
         preparePendingResolution(pending,rewards);
         if(state.mission.sceneTarget){
           state.zone.sceneId=state.mission.sceneTarget;
@@ -5501,6 +5541,7 @@ once:true`
         xpReward:state.mission.xpReward,
         successEffects:missionType==='contract' ? state.mission.rewardEffects.success : '',
         failEffects:missionType==='contract' ? state.mission.rewardEffects.fail : '',
+        failReason:raidResult.failReason,
         flag:missionType==='contract' ? state.mission.questMeta?.flag : null,
         once:missionType==='contract' ? state.mission.questMeta?.once : false
       };
@@ -6099,6 +6140,9 @@ once:true`
     function normalizeMissionTiming(now){
       if(!state.mission.active || state.mission.completed) return;
       const startedAt=Number.isFinite(state.mission.startedAt) ? state.mission.startedAt : now;
+      if(!Number.isFinite(state.mission.startedAt)){
+        state.mission.startedAt=startedAt;
+      }
       const fallbackDuration=computeMissionDurationMs({
         risk:state.mission.raid?.risk,
         time:state.mission.raid?.time,
