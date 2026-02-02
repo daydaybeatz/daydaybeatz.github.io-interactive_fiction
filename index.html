@@ -60,7 +60,7 @@
   body{
     margin:0;
     min-height:100vh;
-    padding:12px 12px calc(12px + var(--tab-bar-height) + var(--tab-buffer));
+    padding:12px 12px calc(12px + var(--tab-bar-height) + var(--tab-buffer) + env(safe-area-inset-bottom));
     color:var(--ink);
     font-family:var(--mono);
     letter-spacing:0.2px;
@@ -531,8 +531,8 @@
     z-index:5;
     border-radius:var(--radius) var(--radius) 0 0;
     box-shadow: var(--shadow), var(--inner), var(--glow);
-    transform:translateY(calc(-1 * var(--visual-viewport-offset)));
-    will-change:transform;
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+    will-change:opacity;
   }
   .tab-buttons button{
     flex:0 0 auto;
@@ -1082,7 +1082,7 @@
               </div>
               <div id="doorsCurrent" class="door-current"></div>
               <div class="zone-summary" style="margin-top:6px;">
-                <p class="scene-desc" id="zoneDesc">Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.</p>
+                <p class="scene-desc" id="zoneDesc">Safehouse hub.</p>
                 <span class="badge" id="zoneBadge">Low risk</span>
               </div>
               <div id="doorsPanel" class="door-panel">
@@ -1219,6 +1219,13 @@
       'A calm mind wins fights—enter combat only when your stamina is ready.'
     ];
     const createIdleSlot=()=>({active:false,id:null,startedAt:null,durationMs:0,etaMinutes:0,completed:false,statusMessage:''});
+    const FALLBACK_HUB_ZONE={
+      id:'safehouse',
+      name:'Safe House',
+      risk:'low',
+      desc:'Safehouse hub.',
+      sceneId:null
+    };
     const createDefaultState=()=>({
       hp:92,maxHp:100,
       stamina:90,maxStamina:100,
@@ -1260,7 +1267,7 @@
       lastThirstDamageAt:null,
       doorsPage:0,
       doorsCollapsed:true,
-      zone:{id:'drift-yard',name:'Drift Yard',risk:'low',desc:'Low-risk salvage corridor. Ideal for stocking up on scrap and common gear.',sceneId:null},
+      zone:{...FALLBACK_HUB_ZONE},
       screen:'main',
       travel:{active:false,endsAt:null,target:null},
       mission:{active:false,type:null,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null,fleeing:false,fleeEndsAt:null,pendingResolution:null,xpReward:0,rewardEffects:{success:'',fail:''},questMeta:null,combat:null,sceneTarget:null},
@@ -1304,8 +1311,7 @@
           sceneId:targetScene
         };
       }
-      const fallback=createDefaultState().zone;
-      return {...fallback};
+      return {...FALLBACK_HUB_ZONE};
     }
     const hydrateState=(saved)=>{
       const base=createDefaultState();
@@ -1317,6 +1323,9 @@
       merged.idleOps=hydrateIdleOps(saved.idleOps,merged.flags,merged.mercs);
       merged.idleRewards=Array.isArray(saved.idleRewards) ? [...saved.idleRewards] : [];
       merged.zone={...base.zone,...(saved.zone||{})};
+      if(!merged.zone?.id || merged.zone.id==='drift-yard' || (merged.zone.name||'').toLowerCase().includes('drift yard')){
+        merged.zone={...getMainHubZone()};
+      }
       merged.travel={...base.travel,...(saved.travel||{})};
       merged.mission={...base.mission,...(saved.mission||{})};
       merged.selected={...base.selected,...(saved.selected||{})};
@@ -2401,7 +2410,7 @@ once:true`
     const isHubZone=(zone=state.zone)=>{
       if(!zone) return false;
       const name=(zone.name||'').toLowerCase();
-      return zone.id==='safehouse' || zone.id==='drift-yard' || name.includes('safehouse') || name.includes('hub') || name.includes('drift yard');
+      return zone.id==='safehouse' || name.includes('safehouse') || name.includes('hub');
     };
     const canAccessVault=()=>isHubZone(state.zone) && !state.mission.active && !state.travel.active;
     const canAccessMarket=()=>state.marketAccess.active && state.marketAccess.zoneId===state.zone.id && !state.mission.active && !state.travel.active;
