@@ -585,6 +585,75 @@
   .inline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
   .stack{display:flex;flex-direction:column;gap:12px;}
 
+  .risk-low{
+    border-color:rgba(57,255,20,0.45);
+    box-shadow: var(--inner), var(--glow);
+  }
+  .risk-medium{
+    border-color:rgba(255,176,0,0.5);
+    box-shadow: var(--inner), 0 0 18px rgba(255,176,0,0.2);
+  }
+  .risk-high,
+  .risk-deadly{
+    border-color:rgba(255,0,51,0.55);
+    box-shadow: var(--inner), var(--glow-red);
+  }
+
+  .badge.risk-medium{
+    background:linear-gradient(180deg, rgba(255,176,0,0.16), rgba(0,0,0,0.72));
+    color:rgba(255,227,194,0.9);
+  }
+  .badge.risk-high,
+  .badge.risk-deadly{
+    background:linear-gradient(180deg, rgba(255,0,51,0.16), rgba(0,0,0,0.72));
+    color:rgba(255,210,218,0.9);
+  }
+  .badge.risk-medium::before{
+    background:rgba(255,176,0,0.9);
+    box-shadow:0 0 10px rgba(255,176,0,0.55), 0 0 18px rgba(255,176,0,0.22);
+  }
+  .badge.risk-high::before,
+  .badge.risk-deadly::before{
+    background:rgba(255,0,51,0.9);
+    box-shadow:0 0 10px rgba(255,0,51,0.55), 0 0 18px rgba(255,0,51,0.22);
+  }
+
+  .door-card{
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px;
+    background:linear-gradient(180deg, rgba(10,12,10,0.82), rgba(0,0,0,0.68));
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .door-card.locked{
+    opacity:0.55;
+    filter:saturate(0.4);
+  }
+  .door-info{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:200px;
+  }
+  .door-title{
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:0.8px;
+  }
+  .door-meta{
+    font-size:12px;
+    color:rgba(184,255,207,0.7);
+  }
+  .door-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
   /* LOG/TERMINAL BOX */
   .log{
     white-space:pre-wrap;
@@ -922,20 +991,6 @@
             <button data-screen="locations">Locations Hub</button>
           </div>
           <div id="screen-main" class="screen active">
-            <section class="panel">
-              <h3>Main Hub Deck</h3>
-              <div class="rows">
-                <div class="inline" style="justify-content:space-between;align-items:center;">
-                  <div>
-                    <p class="scene-title">Zero Lux Command Deck</p>
-                    <p class="scene-desc">Synchronize with the field grid, then step into the locations hub to launch a raid.</p>
-                  </div>
-                  <span class="badge">Hub secure</span>
-                </div>
-                <div id="hubLock" class="muted-box"></div>
-                <button id="enterLocations">Enter locations hub</button>
-              </div>
-            </section>
             <section class="panel">
               <h3>Idle Operations</h3>
               <div id="idleOps"></div>
@@ -1509,10 +1564,18 @@
     const riskTable={low:0.08,medium:0.2,high:0.32,deadly:0.45};
     const riskRank={low:1,medium:2,high:3,deadly:4};
     const riskLevels=['low','medium','high','deadly'];
+    const riskClassList=['risk-low','risk-medium','risk-high','risk-deadly'];
     const lowerRisk=(risk)=>{
       const idx=riskLevels.indexOf(risk);
       if(idx<=0) return riskLevels[0];
       return riskLevels[idx-1] || risk;
+    };
+    const applyRiskClasses=(el,risk)=>{
+      if(!el) return;
+      riskClassList.forEach(cls=>el.classList.remove(cls));
+      const normalized=String(risk || 'low').toLowerCase();
+      const target=riskClassList.includes(`risk-${normalized}`) ? `risk-${normalized}` : 'risk-low';
+      el.classList.add(target);
     };
     const getZoneRiskForExp=(exp,baseRisk)=>{
       if(exp?.meta?.id==='abandoned_mall' && state.flags.has('mall-power')){
@@ -2067,7 +2130,6 @@ once:true`
       loadoutCount:document.getElementById('loadoutCount'),
       codex:document.getElementById('codex'),
       idleOps:document.getElementById('idleOps'),
-      hubLock:document.getElementById('hubLock'),
       screenNav:document.getElementById('screenNav'),
       screens:{
         main:document.getElementById('screen-main'),
@@ -2075,7 +2137,6 @@ once:true`
         mission:document.getElementById('screen-mission')
       },
       screenButtons:Array.from(document.querySelectorAll('#screenNav button')),
-      enterLocations:document.getElementById('enterLocations'),
       missionTitle:document.getElementById('missionTitle'),
       missionMeta:document.getElementById('missionMeta'),
       missionProgress:document.getElementById('missionProgress'),
@@ -3902,9 +3963,6 @@ once:true`
         btn.classList.toggle('active',target===state.screen);
         btn.disabled=isLocked || isLocationsLocked || isMainLocked;
       });
-      if(dom.enterLocations){
-        dom.enterLocations.disabled=isMissionBlockingTravel();
-      }
       Object.entries(dom.screens).forEach(([id,el])=>{
         el.classList.toggle('active',id===state.screen);
       });
@@ -3913,7 +3971,6 @@ once:true`
     dom.screenButtons.forEach(btn=>{
       btn.onclick=()=>setScreen(btn.dataset.screen);
     });
-    dom.enterLocations.onclick=()=>setScreen('locations');
     if(dom.pauseToggle){
       dom.pauseToggle.onclick=()=>{
         if(state.paused){
@@ -3931,14 +3988,6 @@ once:true`
       };
     }
 
-    function renderHubAccess(){
-      dom.hubLock.textContent=isMissionBlockingTravel()
-        ? 'Mission underway. Await extraction clearance before entering locations hub.'
-        : state.mission.active
-          ? 'Mission resolved. Review rewards, then redeploy from the locations hub.'
-          : 'Ops bay is live. Step into the locations hub to pick a gate and launch a raid.';
-    }
-
     function renderPauseToggle(){
       if(!dom.pauseToggle) return;
       dom.pauseToggle.textContent=state.paused ? 'Play' : 'Pause';
@@ -3954,6 +4003,7 @@ once:true`
       dom.zoneTitle.textContent=scene?.title ? `${state.zone.name} · ${scene.title}` : state.zone.name;
       dom.zoneDesc.textContent=scene?.desc || state.zone.desc;
       dom.zoneBadge.textContent=`${state.zone.risk} risk`;
+      applyRiskClasses(dom.zoneBadge,state.zone.risk);
     }
 
     function formatRewardEstimate({loot=0,lootType='',reward='',risk='low',time=8,xp}={}){
@@ -4235,7 +4285,14 @@ once:true`
       }
       const doorButtons=dom.doors.querySelectorAll('button');
       doorButtons.forEach(btn=>{
-        btn.disabled=state.mission.active || state.travel.active || isRewardBlockingTravel();
+        if(btn.dataset.action==='travel'){
+          const locked=btn.dataset.locked === 'true';
+          btn.disabled=locked || state.mission.active || state.travel.active || isRewardBlockingTravel();
+          return;
+        }
+        if(btn.dataset.action==='unlock'){
+          btn.disabled=state.mission.active || state.travel.active;
+        }
       });
       if(state.travel.active){
         scheduleTravelResolution();
@@ -5446,21 +5503,71 @@ once:true`
     }
 
     function addDoor(exp){
-      const btn=document.createElement('button');
+      const card=document.createElement('div');
+      const info=document.createElement('div');
+      const actions=document.createElement('div');
+      const travelBtn=document.createElement('button');
       const minLevel=Number(exp.meta?.minLevel || exp.meta?.minlevel || 0);
       const unlockCost=Number(exp.meta?.unlockCost || exp.meta?.unlockcost || 0);
       const unlockFlag=`unlock-${exp.meta.id}`;
       let isUnlocked=!unlockCost || state.flags.has(unlockFlag);
-      const getHintText=()=>((!isUnlocked && unlockCost)
-        ? `Unlock ${unlockCost} credits`
-        : (minLevel && state.level<minLevel)
-          ? `Requires level ${minLevel}`
-          : (exp.door?.hint||'Unknown contact'));
-      const setDoorLabel=()=>{
-        btn.innerHTML=`<span>${exp.door?.label||exp.meta.name}</span><span class="small">${getHintText()}</span>`;
+      const zoneRisk=getZoneRiskForExp(exp,exp.door?.risk || 'low');
+
+      card.className='door-card';
+      applyRiskClasses(card,zoneRisk);
+      info.className='door-info';
+      actions.className='door-actions';
+      travelBtn.textContent='Set course';
+      travelBtn.dataset.action='travel';
+
+      const getHintText=()=>{
+        if(minLevel && state.level<minLevel){
+          return `Requires level ${minLevel}`;
+        }
+        return exp.door?.hint || 'Unknown contact';
       };
-      setDoorLabel();
-      btn.onclick=()=>{
+      const setDoorLabel=()=>{
+        info.innerHTML=`
+          <div class="door-title">${exp.door?.label || exp.meta.name}</div>
+          <div class="door-meta">${getHintText()}</div>
+        `;
+      };
+
+      const refreshLockState=()=>{
+        const levelLocked=minLevel && state.level<minLevel;
+        const locked=unlockCost && !isUnlocked;
+        card.classList.toggle('locked',locked);
+        travelBtn.dataset.locked=(locked || levelLocked) ? 'true' : 'false';
+        travelBtn.disabled=locked || levelLocked;
+        travelBtn.title=locked
+          ? 'Unlock required'
+          : levelLocked
+            ? `Requires level ${minLevel}`
+            : 'Plot a route to this location';
+      };
+
+      const unlockBtn=document.createElement('button');
+      if(unlockCost && !isUnlocked){
+        unlockBtn.textContent=`Unlock (${unlockCost} credits)`;
+        unlockBtn.dataset.action='unlock';
+        unlockBtn.onclick=()=>{
+          if(state.credits<unlockCost){
+            setCodex(`Need ${unlockCost} credits to unlock ${exp.meta.name}.`);
+            return;
+          }
+          state.credits-=unlockCost;
+          state.flags.add(unlockFlag);
+          isUnlocked=true;
+          logMsg(`${exp.meta.name} unlocked for ${unlockCost} credits.`);
+          setCodex(`${exp.meta.name} unlocked. Transit cleared.`);
+          if(unlockBtn.parentElement) unlockBtn.parentElement.removeChild(unlockBtn);
+          refreshLockState();
+          renderAll();
+        };
+        actions.appendChild(unlockBtn);
+      }
+
+      travelBtn.onclick=()=>{
         if(isMissionBlockingTravel()){
           setCodex('Mission in progress. Cannot change locations.');
           return;
@@ -5478,19 +5585,10 @@ once:true`
           return;
         }
         if(unlockCost && !isUnlocked){
-          if(state.credits<unlockCost){
-            setCodex(`Need ${unlockCost} credits to unlock ${exp.meta.name}.`);
-            return;
-          }
-          state.credits-=unlockCost;
-          state.flags.add(unlockFlag);
-          isUnlocked=true;
-          setDoorLabel();
-          logMsg(`${exp.meta.name} unlocked for ${unlockCost} credits.`);
-          setCodex(`${exp.meta.name} unlocked. Transit cleared.`);
+          setCodex(`Unlock ${exp.meta.name} to travel.`);
+          return;
         }
         const targetScene=exp.door?.target || Object.keys(exp.scenes || {})[0] || null;
-        const zoneRisk=getZoneRiskForExp(exp,exp.door?.risk || 'low');
         const target={
           id:exp.meta.id,
           name:exp.meta.name,
@@ -5507,11 +5605,13 @@ once:true`
         if(exp.door?.note) setCodex(exp.door.note);
         renderAll();
       };
-      if(minLevel && state.level<minLevel){
-        btn.disabled=true;
-        btn.title=`Requires level ${minLevel}`;
-      }
-      dom.doors.appendChild(btn);
+
+      setDoorLabel();
+      refreshLockState();
+      actions.appendChild(travelBtn);
+      card.appendChild(info);
+      card.appendChild(actions);
+      dom.doors.appendChild(card);
     }
 
     function parseOption(str){
@@ -5627,7 +5727,6 @@ once:true`
       renderBars();
       renderInventory();
       renderCrafting();
-      renderHubAccess();
       renderTravelStatus();
       renderMissionStatus();
       renderIdleOps();
