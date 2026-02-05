@@ -4,6 +4,8 @@ name:Ganglands Metro Shanty
 summary:A mid-risk warren of rail tunnels turned into a shanty bazaar. Mid-tier combatants guard clothing and weapons caches.
 unlockCost:50
 shop:true
+bar:true
+barHireCost:35
 
 @door
 label:Ganglands Turnstile

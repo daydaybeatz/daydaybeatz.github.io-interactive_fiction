@@ -29,6 +29,21 @@
       "id": "abandoned_mall",
       "name": "Abandoned Mall",
       "file": "expansions/abandoned_mall.txt"
+    },
+    {
+      "id": "sunken_refinery",
+      "name": "Sunken Refinery",
+      "file": "expansions/sunken_refinery.txt"
+    },
+    {
+      "id": "stormglass_citadel",
+      "name": "Stormglass Citadel",
+      "file": "expansions/stormglass_citadel.txt"
+    },
+    {
+      "id": "rift_complex",
+      "name": "Rift Complex",
+      "file": "expansions/rift_complex.txt"
     }
   ]
 }

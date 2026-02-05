@@ -1,0 +1,85 @@
+@expansion
+id:sunken_refinery
+name:Sunken Refinery
+summary:A submerged industrial refinery with unstable pressure valves and hostile scav crews. Deadly-risk runs with elite tools, weapons, and sealed food packs.
+minLevel:12
+shop:false
+bar:true
+barHireCost:80
+
+@door
+label:Refinery Floodgate
+hint:deadly salvage, pressure fights, telecom job
+risk:deadly
+note:Brine drips from corroded bulkheads as the floodgate yawns open.
+target:pressure-dock
+
+@scene pressure-dock
+title:Pressure Dock
+desc:Steam hisses through cracked pipes, and the floor trembles under old pumps.
+tags:Industrial / Deadly
+option:Stabilize the intake valves => pressure-dock | risk:high | time:8 | reward:pressure salvage | success:item:pressure gauge kit,item:brine crackers,log:You throttle the valves and reclaim a sealed kit. | fail:hp-6,temp+2,log:A pressure burst scorches your hands.
+option:Strip the pump rig => pressure-dock | risk:deadly | time:9 | reward:weapon salvage | success:item:torque cleaver,item:slag shard,log:You wrench a brutal tool free before the rig collapses. | fail:hp-8,morale-4,log:A pump chain snaps and forces a retreat.
+
+@mission
+id:refinery-sweep
+label:Boiler hall sweep
+desc:Hard push through the boiler stacks for refinery gear and food.
+risk:high
+time:14
+energy:18
+loot:4
+lootType:refinery gear & rations
+
+@mission
+id:refinery-core
+label:Cracking the core line
+desc:Traverse the deepest stacks for rare tools and weapon caches.
+risk:deadly
+time:16
+energy:20
+loot:5
+lootType:refinery tools & weapons
+
+@mission
+id:refinery-vault
+label:Pressure vault breach
+desc:Use the refinery vault key to access the sealed pressure bay.
+risk:deadly
+time:18
+energy:22
+loot:6
+lootType:elite refinery cache
+key:1
+combatChance:0.6
+
+@quest
+id:refinery-telecom-1
+title:Connect refinery telecoms (part 1/2)
+desc:Find the missing relay components and map the broken conduit path.
+risk:high
+time:12
+energy:18
+loot:2
+lootType:signal parts
+reward:relay components
+success:item:compressed coil,credits+16,flag:refinery-telecom-1,log:You recover the missing relays and mark the conduit run.
+fail:hp-8,morale-5
+flag:refinery-telecom-1
+once:true
+
+@quest
+id:refinery-telecom-2
+title:Connect refinery telecoms (part 2/2)
+desc:Install the replacement components and re-seat the flooded uplink.
+risk:deadly
+time:14
+energy:20
+loot:3
+lootType:signal crates
+reward:idle dispatch uplink
+success:item:idle relay tuner,credits+24,flag:refinery-telecom-2,log:The uplink sparks alive. A new idle dispatch channel opens.
+fail:hp-10,morale-6
+flag:refinery-telecom-2
+requires:refinery-telecom-1
+once:true

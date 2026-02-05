@@ -1,0 +1,83 @@
+@expansion
+id:rift_complex
+name:Rift Complex
+summary:A warped research facility wrapped in spatial rifts and time shear. The deadliest site yet, demanding top-tier tools for staggering rewards.
+requiresTelecoms:3
+shop:false
+
+@door
+label:Rift Transit Aperture
+hint:deadly anomalies, elite gear, telecom job
+risk:deadly
+note:The aperture ripples, distorting sound and light as you step through.
+target:rift-hub
+
+@scene rift-hub
+title:Rift Hub
+desc:Floating consoles orbit a fractured core, pulsing with unstable light.
+tags:Rift / Deadly
+option:Stabilize the core nodes => rift-hub | risk:high | time:10 | reward:rift provisions | success:item:riftwater flask,item:synth-berry pack,log:You steady the nodes and bottle chilled riftwater. | fail:hp-8,rads+6,log:A surge lashes across the hub.
+option:Strip the grav lockers => rift-hub | risk:deadly | time:11 | reward:weapon cache | success:item:graviton glaive,item:gravity lens,log:You yank a gleaming glaive from a weightless rack. | fail:hp-10,morale-5,log:The lockers buckle and force a retreat.
+
+@mission
+id:rift-sweep
+label:Anomaly sweep
+desc:Thread the rift corridors for advanced tools and supplies.
+risk:high
+time:16
+energy:22
+loot:5
+lootType:rift supplies
+
+@mission
+id:rift-lab
+label:Temporal lab breach
+desc:Break into the time labs for elite gear and weapons.
+risk:deadly
+time:18
+energy:24
+loot:6
+lootType:rift armory
+
+@mission
+id:rift-core
+label:Singularity vault
+desc:Use the rift vault key to access the sealed singularity cache.
+risk:deadly
+time:21
+energy:26
+loot:7
+lootType:singularity cache
+key:1
+combatChance:0.7
+
+@quest
+id:rift-telecom-1
+title:Connect rift telecoms (part 1/2)
+desc:Find the missing stabilizers and trace the broken signal lattice.
+risk:deadly
+time:14
+energy:22
+loot:2
+lootType:signal parts
+reward:signal stabilizers
+success:item:nullfield filament,credits+22,flag:rift-telecom-1,log:The stabilizers are recovered and the signal lattice is traced.
+fail:hp-10,morale-6
+flag:rift-telecom-1
+once:true
+
+@quest
+id:rift-telecom-2
+title:Connect rift telecoms (part 2/2)
+desc:Install the stabilizers and lock the uplink into the rift core.
+risk:deadly
+time:16
+energy:24
+loot:3
+lootType:signal crates
+reward:idle dispatch uplink
+success:item:dispatch accelerator,credits+30,flag:rift-telecom-2,log:The uplink locks in place. A new idle dispatch channel opens.
+fail:hp-12,morale-7
+flag:rift-telecom-2
+requires:rift-telecom-1
+once:true
