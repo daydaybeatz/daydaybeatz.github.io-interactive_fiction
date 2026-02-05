@@ -1,0 +1,85 @@
+@expansion
+id:stormglass_citadel
+name:Stormglass Citadel
+summary:A shattered tower of stormglass crystal and humming conduits. Deadly-risk raids demand advanced gear and reward high-grade weapons.
+unlockCost:65
+shop:false
+bar:true
+barHireCost:100
+
+@door
+label:Citadel Stormgate
+hint:deadly combatants, stormglass gear, telecom job
+risk:deadly
+note:Lightning crawls along crystal spires as the stormgate unlocks.
+target:stormhall
+
+@scene stormhall
+title:Stormhall
+desc:Cracked crystal tiles thrum underfoot as static arcs jump the halls.
+tags:Citadel / Deadly
+option:Harvest the crystal ribs => stormhall | risk:high | time:9 | reward:stormglass salvage | success:item:stormglass shard,item:static fruit bar,log:You pry loose glimmering ribs packed with nutrients. | fail:hp-7,temp+2,log:Static backlash scorches your arms.
+option:Check the armory racks => stormhall | risk:deadly | time:10 | reward:weapon cache | success:item:stormglass rapier,item:storm seal gaskets,log:You lift a pristine blade before the racks spark. | fail:hp-9,morale-4,log:The racks discharge and drive you back.
+
+@mission
+id:citadel-sweep
+label:Crystal stair sweep
+desc:Clear hostile sentries for stormglass supplies and tools.
+risk:high
+time:15
+energy:20
+loot:4
+lootType:stormglass supplies
+
+@mission
+id:citadel-spire
+label:Upper spire extraction
+desc:Ascend the spire for high-grade armor and rare weaponry.
+risk:deadly
+time:17
+energy:22
+loot:5
+lootType:stormglass armory
+
+@mission
+id:citadel-vault
+label:Stormglass vault breach
+desc:Use the citadel vault key to access the sealed core arsenal.
+risk:deadly
+time:20
+energy:24
+loot:6
+lootType:stormglass core cache
+key:1
+combatChance:0.65
+
+@quest
+id:citadel-telecom-1
+title:Connect citadel telecoms (part 1/2)
+desc:Find the missing conduits and map the ruptured signal spine.
+risk:high
+time:13
+energy:19
+loot:2
+lootType:signal parts
+reward:signal spine map
+success:item:capacitor lattice,credits+18,flag:citadel-telecom-1,log:The conduit lattice is restored and the spine is mapped.
+fail:hp-9,morale-5
+flag:citadel-telecom-1
+once:true
+
+@quest
+id:citadel-telecom-2
+title:Connect citadel telecoms (part 2/2)
+desc:Install the replacement components and align the stormglass relays.
+risk:deadly
+time:15
+energy:21
+loot:3
+lootType:signal crates
+reward:idle dispatch uplink
+success:item:phase relay kit,credits+26,flag:citadel-telecom-2,log:The stormglass relays sync. A new idle dispatch channel opens.
+fail:hp-11,morale-6
+flag:citadel-telecom-2
+requires:citadel-telecom-1
+once:true
