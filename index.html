@@ -342,6 +342,23 @@
     padding:7px 0;
     border-bottom:1px solid rgba(57,255,20,0.06);
   }
+  .statline--temp{
+    grid-template-columns:1fr;
+  }
+  .temp-status{
+    font-size:12px;
+    letter-spacing:0.4px;
+    text-transform:uppercase;
+    color:rgba(184,255,207,0.78);
+  }
+  .temp-status--cold{
+    color:var(--blue);
+    text-shadow:0 0 8px rgba(0,183,255,0.35);
+  }
+  .temp-status--hot{
+    color:var(--red);
+    text-shadow:0 0 8px rgba(255,0,51,0.35);
+  }
   .bar{
     height:10px;
     background:rgba(0,0,0,0.65);
@@ -3886,14 +3903,19 @@ once:true`
         ['Energy','energy','maxEnergy','stamina'],
         ['Hunger','hunger','maxHunger','hunger'],
         ['Hydration','thirst','maxThirst','thirst'],
-        ['Radiation','rads',100,'rads'],
-        ['Body Temp','bodyTemp','maxBodyTemp','temp']
+        ['Radiation','rads',100,'rads']
       ];
+      const tempStatus=(()=>{
+        if(state.bodyTemp<=92) return {label:'very cold',tone:'temp-status--cold'};
+        if(state.bodyTemp>=103) return {label:'overheating',tone:'temp-status--hot'};
+        return {label:'normal',tone:''};
+      })();
+      const tempLine=`<div class="statline statline--temp"><div class="temp-status ${tempStatus.tone}">body temperature: ${tempStatus.label}</div></div>`;
       dom.stats.innerHTML=rows.map(([label,key,maxKey,cls])=>{
         const val=state[key];const max=(typeof maxKey==='string')?state[maxKey]:maxKey;
         const percent=clamp(pct(val,max),0,200);
         return `<div class="statline"><div>${label}</div><div class="bar ${cls}"><span style="width:${percent}%;"></span></div><div>${Math.round(val)}/${max}</div></div>`;
-      }).join('');
+      }).join('')+tempLine;
     dom.meta.innerHTML=`<span class="pill-inline"><b>Credits</b>${state.credits}</span>`+
         `<span class="pill-inline"><b>Scrap</b>${state.scrap}</span>`+
         `<span class="pill-inline"><b>Keys</b>${state.keys}</span>`+
