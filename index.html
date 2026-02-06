@@ -1307,6 +1307,18 @@
       desc:'Safehouse hub.',
       sceneId:null
     };
+    const getDefaultTravelState=()=>({
+      active:false,
+      endsAt:null,
+      target:null,
+      distance:null,
+      durationMs:null,
+      interruptAt:null,
+      paused:false,
+      remainingMs:null,
+      combatChance:null,
+      origin:null
+    });
     const createDefaultState=()=>({
       hp:92,maxHp:100,
       stamina:90,maxStamina:100,
@@ -1352,8 +1364,8 @@
       doorsCollapsed:true,
       zone:{...FALLBACK_HUB_ZONE},
       screen:'main',
-      travel:{active:false,endsAt:null,target:null},
-      mission:{active:false,type:null,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null,fleeing:false,fleeEndsAt:null,pendingResolution:null,xpReward:0,rewardEffects:{success:'',fail:''},questMeta:null,combat:null,sceneTarget:null,event:null,eventRewards:[],eventHoldRemainingMs:null,eventHoldProgress:null,eventHoldTotalMs:null},
+      travel:getDefaultTravelState(),
+      mission:{active:false,type:null,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null,fleeing:false,fleeEndsAt:null,pendingResolution:null,xpReward:0,rewardEffects:{success:'',fail:''},questMeta:null,combat:null,sceneTarget:null,event:null,eventRewards:[],eventHoldRemainingMs:null,eventHoldProgress:null,eventHoldTotalMs:null,travelCombat:false},
       inventoryScreen:'backpack',
       stashScreen:'vault',
       selected:{source:null,item:null}
@@ -1416,6 +1428,17 @@
       merged.selected={...base.selected,...(saved.selected||{})};
       const travelEndsAt=Number(merged.travel.endsAt);
       merged.travel.endsAt=Number.isFinite(travelEndsAt) ? travelEndsAt : null;
+      const travelDistance=Number(merged.travel.distance);
+      merged.travel.distance=Number.isFinite(travelDistance) ? travelDistance : null;
+      const travelDurationMs=Number(merged.travel.durationMs);
+      merged.travel.durationMs=Number.isFinite(travelDurationMs) ? travelDurationMs : null;
+      const travelInterruptAt=Number(merged.travel.interruptAt);
+      merged.travel.interruptAt=Number.isFinite(travelInterruptAt) ? travelInterruptAt : null;
+      const travelRemainingMs=Number(merged.travel.remainingMs);
+      merged.travel.remainingMs=Number.isFinite(travelRemainingMs) ? travelRemainingMs : null;
+      const travelCombatChance=Number(merged.travel.combatChance);
+      merged.travel.combatChance=Number.isFinite(travelCombatChance) ? travelCombatChance : null;
+      merged.travel.paused=Boolean(merged.travel.paused);
       const missionStartedAt=Number(merged.mission.startedAt);
       const missionEndsAt=Number(merged.mission.endsAt);
       merged.mission.startedAt=Number.isFinite(missionStartedAt) ? missionStartedAt : null;
@@ -1822,6 +1845,11 @@
     const HEALTH_CRITICAL_THRESHOLD=0.2;
     const HEALTH_WARNING_COOLDOWN_MINUTES=30;
     const DOORS_PAGE_SIZE=4;
+    const TRAVEL_DISTANCE_BASE=2;
+    const TRAVEL_DISTANCE_STEP=2;
+    const TRAVEL_BASE_SECONDS=6;
+    const TRAVEL_SECONDS_PER_KM=2;
+    const TRAVEL_MAX_SECONDS=30;
     const riskTable={low:0.08,medium:0.2,high:0.32,deadly:0.45};
     const riskRank={low:1,medium:2,high:3,deadly:4};
     const riskLevels=['low','medium','high','deadly'];
@@ -1847,6 +1875,24 @@
       }
       return baseRisk;
     };
+    const getZoneDistance=(zoneId)=>{
+      if(!zoneId || zoneId==='safehouse') return 0;
+      return travelDistanceMap.get(zoneId) ?? TRAVEL_DISTANCE_BASE;
+    };
+    const getTravelDurationMs=(distance)=>{
+      const seconds=clamp(Math.round(TRAVEL_BASE_SECONDS+(distance*TRAVEL_SECONDS_PER_KM)),TRAVEL_BASE_SECONDS,TRAVEL_MAX_SECONDS);
+      return seconds*1000;
+    };
+    const getTravelCombatChance=(distance)=>{
+      const base=0.015;
+      const scaled=base+(distance*0.01);
+      return clamp(scaled,0.02,0.18);
+    };
+    const getTravelCombatRisk=(distance,targetRisk)=>{
+      if(distance<=4) return lowerRisk(targetRisk);
+      return targetRisk;
+    };
+    const formatTravelEta=(durationMs)=>`${Math.max(1,Math.ceil(durationMs/1000))}s`;
     const getFactionLabel=(factionId)=>{
       const faction=FACTIONS.find(entry=>entry.id===factionId);
       return faction?.fullName || faction?.label || factionId || 'Unknown faction';
@@ -1960,6 +2006,16 @@
       {id:'stormglass_citadel',name:'Stormglass Citadel',file:'expansions/stormglass_citadel.txt'},
       {id:'rift_complex',name:'Rift Complex',file:'expansions/rift_complex.txt'}
     ];
+    let travelDistanceMap=new Map();
+    const initializeTravelDistances=(manifest=EXPANSION_MANIFEST)=>{
+      travelDistanceMap=new Map();
+      manifest
+        .filter(meta=>meta.id && meta.id!=='safehouse')
+        .forEach((meta,index)=>{
+          travelDistanceMap.set(meta.id,TRAVEL_DISTANCE_BASE+(index*TRAVEL_DISTANCE_STEP));
+        });
+    };
+    initializeTravelDistances(EXPANSION_MANIFEST);
     const EMBEDDED_EXPANSIONS={
       safehouse:`@expansion
 id:safehouse
@@ -3311,6 +3367,7 @@ once:true`
         travelResolveTimer=null;
       }
       if(!state.travel.active) return;
+      if(state.travel.paused) return;
       const endsAt=Number(state.travel.endsAt);
       if(!Number.isFinite(endsAt)) return;
       const delay=Math.max(0,endsAt-Date.now())+60;
@@ -5078,6 +5135,10 @@ once:true`
         setCodex('Mission in progress. Shop locked.');
         return;
       }
+      if(screen==='shop' && !zoneHasShop()){
+        setCodex('No vendors are set up here.');
+        return;
+      }
       state.screen=screen;
       if(screen==='locations'){
         ensureExpansionsLoaded();
@@ -5093,8 +5154,14 @@ once:true`
         const isLocationsLocked=target==='locations' && isMissionBlockingTravel();
         const isMainLocked=target==='main' && isMissionBlockingTravel();
         const isShopLocked=target==='shop' && isMissionBlockingTravel();
+        const isShopUnavailable=target==='shop' && !zoneHasShop();
         btn.classList.toggle('active',target===state.screen);
-        btn.disabled=isLocked || isLocationsLocked || isMainLocked || isShopLocked;
+        if(isShopUnavailable && target==='shop'){
+          btn.title='Visit a zone with vendors to access the shop.';
+        }else{
+          btn.title='';
+        }
+        btn.disabled=isLocked || isLocationsLocked || isMainLocked || isShopLocked || isShopUnavailable;
       });
       Object.entries(dom.screens).forEach(([id,el])=>{
         el.classList.toggle('active',id===state.screen);
@@ -5650,10 +5717,15 @@ once:true`
       renderAll();
     }
 
+    const resetTravelState=()=>{
+      state.travel=getDefaultTravelState();
+    };
+
     function resolveTravelIfComplete(){
       if(!state.travel.active) return false;
+      if(state.travel.paused) return false;
       if(!state.travel.target || !state.travel.endsAt){
-        state.travel={active:false,endsAt:null,target:null};
+        resetTravelState();
         setCodex('Transit data lost. Select a zone gate to reroute.');
         logMsg('Transit data lost. Zone selection reset.');
         if(travelResolveTimer){
@@ -5665,7 +5737,7 @@ once:true`
       if(Date.now()<state.travel.endsAt) return false;
       state.zone=state.travel.target;
       clearMarketAccess();
-      state.travel={active:false,endsAt:null,target:null};
+      resetTravelState();
       setCodex(`Arrived at ${state.zone.name}.`);
       logMsg(`Transit complete: ${state.zone.name}.`);
       pushNpcDialog(state.zone?.id,'arrivalDialog');
@@ -5677,9 +5749,81 @@ once:true`
       return true;
     }
 
+    function resumeTravelAfterCombat(){
+      if(!state.travel.active || !state.travel.paused) return;
+      const remainingMs=Math.max(0,state.travel.remainingMs || 0);
+      state.travel.paused=false;
+      state.travel.remainingMs=null;
+      state.travel.endsAt=Date.now()+remainingMs;
+      state.travel.interruptAt=null;
+      logMsg('Transit resumed.');
+      setCodex('Transit resumed. Stay alert.');
+    }
+
+    function abortTravelAfterAmbush(){
+      if(!state.travel.active) return;
+      resetTravelState();
+      logMsg('Transit aborted after the ambush.');
+    }
+
+    function triggerTravelCombat(){
+      if(!state.travel.active || state.travel.paused) return;
+      startLoops();
+      const now=Date.now();
+      state.travel.paused=true;
+      state.travel.remainingMs=Math.max(0,(state.travel.endsAt || now)-now);
+      state.travel.interruptAt=null;
+      const travelRisk=getTravelCombatRisk(state.travel.distance || 0,state.travel.target?.risk || state.zone.risk);
+      const profile=getCombatProfile(travelRisk);
+      const combatState=initCombatState(profile);
+      consumeCombatAmmo();
+      const estimatedMs=clamp(combatState.expectedRounds*COMBAT_ROUND_MS,MIN_MISSION_SECONDS*1000,MAX_MISSION_SECONDS*1000);
+      state.mission={
+        active:true,
+        type:'combat',
+        raid:profile,
+        startedAt:now,
+        endsAt:now+estimatedMs,
+        completed:false,
+        success:null,
+        summary:`Transit ambush: ${profile.enemyName}. ${describeCombatState(combatState)}`,
+        rewards:[],
+        statusMessage:`Transit ambush: ${profile.enemyName}. ${describeCombatState(combatState)}`,
+        location:{...state.zone},
+        fleeing:false,
+        fleeEndsAt:null,
+        pendingResolution:null,
+        xpReward:computeMissionXp(profile.risk,profile.time),
+        rewardEffects:{success:'',fail:''},
+        questMeta:null,
+        combat:combatState,
+        sceneTarget:null,
+        event:null,
+        eventRewards:[],
+        eventHoldRemainingMs:null,
+        eventHoldProgress:null,
+        eventHoldTotalMs:null,
+        travelCombat:true
+      };
+      setCodex('Hostiles in transit! Hold the line or break off.');
+      logMsg(`Transit ambush en route to ${state.travel.target?.name || 'destination'}.`);
+      setActiveTab('hub');
+      setScreen('mission');
+      normalizeMissionTiming(Date.now());
+      renderAll();
+    }
+
     function renderTravelStatus(){
       if(resolveTravelIfComplete()){
         return renderTravelStatus();
+      }
+      if(state.travel.active && !state.travel.paused && Number.isFinite(state.travel.interruptAt) && Date.now()>=state.travel.interruptAt){
+        state.travel.interruptAt=null;
+        const chance=Number(state.travel.combatChance) || 0;
+        if(Math.random()<chance){
+          triggerTravelCombat();
+          return;
+        }
       }
       const doorButtons=dom.doors.querySelectorAll('button');
       doorButtons.forEach(btn=>{
@@ -6104,7 +6248,7 @@ once:true`
       state.lastHungerDamageAt=nowMinutes;
       state.lastThirstDamageAt=nowMinutes;
       resetMissionState();
-      state.travel={active:false,endsAt:null,target:null};
+      resetTravelState();
       clearMarketAccess();
       state.zone=getMainHubZone();
       state.selected={source:null,item:null};
@@ -6808,7 +6952,7 @@ once:true`
     }
 
     function resetMissionState(){
-      state.mission={active:false,type:null,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null,fleeing:false,fleeEndsAt:null,pendingResolution:null,xpReward:0,rewardEffects:{success:'',fail:''},questMeta:null,combat:null,sceneTarget:null,event:null,eventRewards:[],eventHoldRemainingMs:null,eventHoldProgress:null,eventHoldTotalMs:null};
+      state.mission={active:false,type:null,raid:null,startedAt:null,endsAt:null,completed:false,success:null,summary:'',rewards:[],statusMessage:'',location:null,fleeing:false,fleeEndsAt:null,pendingResolution:null,xpReward:0,rewardEffects:{success:'',fail:''},questMeta:null,combat:null,sceneTarget:null,event:null,eventRewards:[],eventHoldRemainingMs:null,eventHoldProgress:null,eventHoldTotalMs:null,travelCombat:false};
     }
     function closeMission({auto=false}={}){
       const lastLocation=state.mission.location ? {...state.mission.location} : null;
@@ -7003,6 +7147,9 @@ once:true`
         state.mission.summary=result.summary;
         state.mission.statusMessage=result.summary;
         if(!result.success || state.hp<=0){
+          if(state.mission.travelCombat){
+            abortTravelAfterAmbush();
+          }
           const failReason=state.mission.fleeing ? 'Fled under fire' : 'Overrun by hostiles';
           logMsg(`✖ ${raid.label} failed (${failReason}).`);
           state.mission.success=false;
@@ -7016,6 +7163,9 @@ once:true`
           applyCombatFailurePenalty();
           failCombatMission(failReason);
           return;
+        }
+        if(state.mission.travelCombat){
+          resumeTravelAfterCombat();
         }
         if(state.mission.pendingResolution){
           const pendingRewards=state.mission.pendingResolution.rewards || [];
@@ -7227,6 +7377,7 @@ once:true`
       }catch(err){
         console.warn('games.json unavailable, falling back to embedded manifest.',err);
       }
+      initializeTravelDistances(manifest);
       expansionsExpected=manifest.length;
       expansionsLoaded=0;
       expansionsAttempted=0;
@@ -7295,6 +7446,9 @@ once:true`
       const telecomCount=getConnectedTelecomCount(exp.meta.id);
       const telecomLocked=requiredTelecoms && telecomCount<requiredTelecoms;
       const zoneRisk=getZoneRiskForExp(exp,exp.door?.risk || 'low');
+      const distance=getZoneDistance(exp.meta.id);
+      const travelDurationMs=getTravelDurationMs(distance);
+      const travelEta=formatTravelEta(travelDurationMs);
 
       card.className='door-card';
       applyRiskClasses(card,zoneRisk);
@@ -7313,9 +7467,10 @@ once:true`
         return exp.door?.hint || 'Unknown contact';
       };
       const setDoorLabel=()=>{
+        const distanceMeta=`${distance} km · ETA ${travelEta}`;
         info.innerHTML=`
           <div class="door-title">${exp.door?.label || exp.meta.name}</div>
-          <div class="door-meta">${getHintText()}</div>
+          <div class="door-meta">${getHintText()} · ${distanceMeta}</div>
         `;
       };
 
@@ -7386,13 +7541,23 @@ once:true`
           desc:exp.door?.desc || exp.door?.hint || 'Salvage zone marked by strange chatter.',
           sceneId:targetScene
         };
+        const distance=getZoneDistance(target.id);
+        const durationMs=getTravelDurationMs(distance);
+        const combatChance=getTravelCombatChance(distance);
         state.travel={
           active:true,
-          endsAt:Date.now(),
-          target
+          endsAt:Date.now()+durationMs,
+          target,
+          distance,
+          durationMs,
+          interruptAt:Date.now()+Math.round(durationMs*0.45),
+          paused:false,
+          remainingMs:null,
+          combatChance,
+          origin:{...state.zone}
         };
         state.doorsCollapsed=true;
-        logMsg(`Routing to ${target.name}… hold tight.`);
+        logMsg(`Routing to ${target.name}… ${distance} km out, ETA ${formatTravelEta(durationMs)}.`);
         if(exp.door?.note) setCodex(exp.door.note);
         renderAll();
       };
@@ -7823,6 +7988,7 @@ once:true`
         }
       }
       if(state.travel.active && Number.isFinite(state.travel.endsAt)) state.travel.endsAt+=deltaMs;
+      if(state.travel.active && Number.isFinite(state.travel.interruptAt)) state.travel.interruptAt+=deltaMs;
       state.idleOps.forEach(slot=>{
         if(slot.active && Number.isFinite(slot.startedAt)) slot.startedAt+=deltaMs;
       });
