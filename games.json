@@ -16,6 +16,16 @@
       "file": "expansions/metro_ganglands.txt"
     },
     {
+      "id": "abernathy_holdout",
+      "name": "Abernathy Militia Hidden Holdout",
+      "file": "expansions/abernathy_holdout.txt"
+    },
+    {
+      "id": "rmg_base",
+      "name": "RMG Base of Operations",
+      "file": "expansions/rmg_base.txt"
+    },
+    {
       "id": "government_facility",
       "name": "Abandoned Government Facility",
       "file": "expansions/government_facility.txt"

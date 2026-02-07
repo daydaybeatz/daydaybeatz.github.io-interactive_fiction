@@ -1,0 +1,96 @@
+@expansion
+id:abernathy_holdout
+name:Abernathy Militia Hidden Holdout
+summary:A concealed militia refuge tucked under the transit stacks, trading favors for survival. Low credit pay, strong salvage, and a warm place to rest.
+temp:temperate
+arrivalDialog:Lieutenant Voss: Keep your head low—this holdout survived the last purge because no one talks about it.
+missionStartDialog:Runner Hale: We keep the militia fed with odd jobs and quieter favors. Don’t make it loud.
+missionEndDialog:Quartermaster Jax: Good pull. We pay light, but the stock stays rich.
+shop:true
+relationFaction:gang
+relationMin:3
+
+@door
+label:Militia Signal Hatch
+hint:odd jobs, militia lore, shop, rest
+risk:low
+note:A chalked militia sigil guides you to a disguised hatch below the rails.
+target:commons
+
+@scene commons
+title:Holdout Commons
+desc:A low-lit commons with salvaged bunks, a heater barrel, and a militia supply counter.
+tags:Abernathy / Friendly
+option:Rest near the heater barrel => commons | risk:low | time:6 | reward:rested | success:hp+10,stamina+12,energy+8,temp=normal,log:The heat seeps into your joints and the alarms quiet down. | fail:credits-2,log:Too many voices in the vents keep you awake.
+
+@mission
+id:holdout-courier-relay
+label:Painted courier relay
+desc:Carry a marked crate through the smuggler’s ductwork and bring back encoded banners.
+risk:medium
+time:10
+energy:12
+loot:3
+lootType:militia caches
+faction:gang
+relationMin:3
+oppositionFaction:military
+oppositionRelationSuccess:-1
+fixedRewards:credits+4
+event:RMG scout spots the markings | chance:0.6 | prompt:A Redtech scout marks your painted crate. How do you respond?
+eventOption:Mask the paint with soot => risk:low | tag:stealth | success:item:gang patchwork pants,credits+4,log:The soot hides the signal and you slip through. | fail:hp-4,credits-2,log:The scout catches the trail and chases you.
+eventOption:Run the scout off => risk:high | tag:combat | success:item:rail spike mace,log:You drive the scout back and claim a brute mace. | fail:hp-7,log:The scout’s shot grazes you.
+
+@mission
+id:holdout-creed-chapel
+label:Creed chapel pickup
+desc:Recover militia relics from a flooded chapel the elders refuse to enter.
+risk:medium
+time:11
+energy:13
+loot:4
+lootType:relic crates
+faction:gang
+relationMin:3
+oppositionFaction:military
+oppositionRelationSuccess:-1
+fixedRewards:credits+5
+event:Old militia oath scroll found | chance:0.55 | prompt:You find an oath scroll tied to a fallen militia captain.
+eventOption:Return it to the holdout => risk:low | tag:mercy | success:item:ledger-etched compass,credits+4,log:The elders reward the reverence with a compass. | fail:credits-3,log:The scroll crumbles as you withdraw.
+eventOption:Sell the relic contact => risk:high | tag:betrayal | success:credits+12,item:old coin,log:You sell the contact and pocket extra coin. | fail:hp-6,log:The buyer double-crosses you.
+
+@mission
+id:holdout-waterline
+label:Stolen waterline audit
+desc:Audit a stolen waterline that keeps the holdout running.
+risk:medium
+time:12
+energy:14
+loot:4
+lootType:water crates
+faction:gang
+relationMin:3
+oppositionFaction:military
+oppositionRelationSuccess:-1
+fixedRewards:credits+6
+event:Pipeline sentry demands a cut | chance:0.6 | prompt:A sentry wants payment to keep the water flowing.
+eventOption:Pay the sentry in rations => risk:low | tag:mercy | success:item:water canister,credits+3,log:The sentry keeps quiet and shares a canister. | fail:credits-4,log:The sentry pockets the ration and still alerts patrols.
+eventOption:Threaten the sentry => risk:high | tag:combat | success:item:service wrench,credits+6,log:The sentry backs down and you take their wrench. | fail:hp-7,log:The sentry pulls a blade and the fight goes loud.
+
+@mission
+id:holdout-signal-scramble
+label:Scrambler line run
+desc:Run the old signal scrambler so the militia can move unnoticed tonight.
+risk:high
+time:13
+energy:16
+loot:4
+lootType:signal crates
+faction:gang
+relationMin:3
+oppositionFaction:military
+oppositionRelationSuccess:-1
+fixedRewards:credits+6
+event:Scrambler coil overload | chance:0.55 | prompt:The coil overheats and threatens to burn out.
+eventOption:Cool the coil with scavenged coolant => risk:medium | tag:tech | success:item:coolant canister,credits+4,log:The coil steadies and you pocket a coolant can. | fail:hp-6,log:The coil bursts and burns your gloves.
+eventOption:Run the scramble anyway => risk:high | tag:combat | success:item:signal jammer,log:You brute-force the scramble and seize a jammer. | fail:hp-8,credits-4,log:The scramble detonates and sends you stumbling.
