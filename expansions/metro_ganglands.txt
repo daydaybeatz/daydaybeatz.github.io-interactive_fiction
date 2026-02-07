@@ -95,6 +95,45 @@ lootType:weapons & armored gear
 key:1
 combatChance:0.5
 
+@mission
+id:ganglands-market-tax
+label:Market tax run
+desc:Collect scrap taxes from the bazaar stalls without starting a riot.
+risk:medium
+time:11
+energy:14
+loot:3
+lootType:gang taxes
+event:Stall owner refuses to pay | chance:0.6 | prompt:A stall owner refuses to pay the tax and calls for help.
+eventOption:Offer a smaller cut => risk:medium | tag:mercy | success:credits+8,item:cloth scraps,log:They pay a reduced toll and toss extra cloth. | fail:credits-4,log:The stall owner stalls you until lookouts arrive.
+eventOption:Enforce the tax by force => risk:high | tag:combat | success:item:stun baton,credits+10,log:You grab a baton and collect the tax. | fail:hp-7,log:A brawl breaks out and you retreat.
+
+@mission
+id:ganglands-switchyard
+label:Switchyard stash run
+desc:Slip into the switchyard to pull weapons and tools from rail crates.
+risk:high
+time:13
+energy:17
+loot:4
+lootType:rail crate weapons
+event:Overheated rail line | chance:0.55 | prompt:The rail line sparks and throws hot debris.
+eventOption:Cut power and wait => risk:medium | tag:tech | success:item:signal jammer,credits+8,log:You cut the power and grab a jammer. | fail:credits-5,log:Downtime costs you supply access.
+eventOption:Dash through the sparks => risk:high | tag:stealth | success:item:riot shield,log:You sprint through and snag a riot shield. | fail:hp-8,log:The sparks burn your arms.
+
+@mission
+id:ganglands-tunnel-rescue
+label:Tunnel rescue sweep
+desc:Search a collapsed spur for survivors and hidden caches.
+risk:medium
+time:12
+energy:15
+loot:3
+lootType:survival caches
+event:Trapped runner calls out | chance:1 | prompt:A runner is pinned under a beam and begs for help.
+eventOption:Lift the beam and help them out => risk:medium | tag:mercy | success:credits+6,item:rail map rig,log:The runner shares a route rig in thanks. | fail:hp-5,log:The beam shifts and bruises you.
+eventOption:Take their pack and move on => risk:high | tag:betrayal | success:item:trackside vest,credits+12,log:You take the pack and slip away. | fail:hp-7,credits-4,log:The runner's crew catches up fast.
+
 @quest
 id:ganglands-telecom
 title:Reconnect the ganglands telecoms
