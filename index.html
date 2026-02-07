@@ -2058,6 +2058,8 @@
       {id:'safehouse',name:'Safe House',file:'expansions/safehouse.txt'},
       {id:'underground_bunker',name:'Abandoned Underground Bunker System',file:'expansions/underground_bunker.txt'},
       {id:'metro_ganglands',name:'Ganglands Metro Shanty',file:'expansions/metro_ganglands.txt'},
+      {id:'abernathy_holdout',name:'Abernathy Militia Hidden Holdout',file:'expansions/abernathy_holdout.txt'},
+      {id:'rmg_base',name:'RMG Base of Operations',file:'expansions/rmg_base.txt'},
       {id:'government_facility',name:'Abandoned Government Facility',file:'expansions/government_facility.txt'},
       {id:'medical_center',name:'Medical Center',file:'expansions/medical_center.txt'},
       {id:'abandoned_mall',name:'Abandoned Mall',file:'expansions/abandoned_mall.txt'},
@@ -3403,6 +3405,26 @@ once:true`
         {id:'field handgun',cost:92,tag:'Firearm'},
         {id:'frontier rifle',cost:108,tag:'Firearm'},
         {id:'breach shotgun',cost:128,tag:'Firearm'}
+      ],
+      abernathy_holdout:[
+        {id:'bandage',cost:12,tag:'Field care'},
+        {id:'ration bar',cost:14,tag:'Rations'},
+        {id:'water flask',cost:12,tag:'Hydration'},
+        {id:'gang patchwork pants',cost:28,tag:'Clothing'},
+        {id:'graffiti cloak',cost:52,tag:'Clothing'},
+        {id:'rail spike mace',cost:40,tag:'Weapon'},
+        {id:'shanty revolver',cost:76,tag:'Weapon'},
+        {id:'signal jammer',cost:58,tag:'Signal'}
+      ],
+      rmg_base:[
+        {id:'bandage',cost:12,tag:'Medical'},
+        {id:'handgun ammo',cost:10,tag:'Ammo'},
+        {id:'rifle ammo',cost:12,tag:'Ammo'},
+        {id:'utility coat',cost:38,tag:'Uniform'},
+        {id:'riot-line tape',cost:18,tag:'Gear'},
+        {id:'thermal wrap',cost:24,tag:'Warmth'},
+        {id:'field rations',cost:18,tag:'Rations'},
+        {id:'wire spool',cost:16,tag:'Supplies'}
       ]
     };
     const MEDICAL_CENTER_UPGRADE_STOCK=[
@@ -5553,6 +5575,7 @@ once:true`
 
     function syncMissionCompletion(){
       if(!state.mission.active || state.mission.completed) return;
+      if(state.mission.event?.active && !state.mission.event.resolved) return;
       const now=Date.now();
       normalizeMissionTiming(now);
       if(state.mission.type==='combat'){
@@ -7069,6 +7092,12 @@ once:true`
           updateFactionRelation(pending.factionId,relationDelta);
         }
       }
+      if(pending.oppositionFactionId){
+        const relationDelta=outcome==='success' ? pending.oppositionRelationSuccess : pending.oppositionRelationFail;
+        if(Number.isFinite(relationDelta)){
+          updateFactionRelation(pending.oppositionFactionId,relationDelta);
+        }
+      }
       state.mission.completed=true;
       state.mission.success=outcome==='success';
       state.mission.rewards=rewards;
@@ -7706,7 +7735,10 @@ once:true`
         consumeFlag:raid.consumeFlag || null,
         factionId:raid.faction || null,
         relationSuccess:Number.isFinite(raid.relationSuccess) ? raid.relationSuccess : null,
-        relationFail:Number.isFinite(raid.relationFail) ? raid.relationFail : null
+        relationFail:Number.isFinite(raid.relationFail) ? raid.relationFail : null,
+        oppositionFactionId:raid.oppositionFaction || null,
+        oppositionRelationSuccess:Number.isFinite(raid.oppositionRelationSuccess) ? raid.oppositionRelationSuccess : null,
+        oppositionRelationFail:Number.isFinite(raid.oppositionRelationFail) ? raid.oppositionRelationFail : null
       };
       preparePendingResolution(pending,rewards);
       const combatChanceOverride=missionType==='contract'
@@ -7914,10 +7946,14 @@ once:true`
       const minLevel=Number(exp.meta?.minLevel || exp.meta?.minlevel || 0);
       const unlockCost=Number(exp.meta?.unlockCost || exp.meta?.unlockcost || 0);
       const requiredTelecoms=Number(exp.meta?.requiresTelecoms || exp.meta?.requirestelecoms || 0);
+      const relationMin=Number(exp.meta?.relationMin || exp.meta?.relationmin || 0);
+      const relationFaction=exp.meta?.relationFaction || exp.meta?.relationfaction || '';
       const unlockFlag=`unlock-${exp.meta.id}`;
       let isUnlocked=!unlockCost || state.flags.has(unlockFlag);
       const telecomCount=getConnectedTelecomCount(exp.meta.id);
       const telecomLocked=requiredTelecoms && telecomCount<requiredTelecoms;
+      const relationValue=relationFaction ? getFactionRelation(relationFaction) : 0;
+      const relationLocked=relationFaction && relationMin && relationValue<relationMin;
       const zoneRisk=getZoneRiskForExp(exp,exp.door?.risk || 'low');
       const distance=getZoneDistance(exp.meta.id);
       const travelDurationMs=getTravelDurationMs(distance);
@@ -7934,6 +7970,9 @@ once:true`
         if(minLevel && state.level<minLevel){
           return `Requires level ${minLevel}`;
         }
+        if(relationLocked){
+          return `Requires ${getFactionLabel(relationFaction)} relation ${relationMin} (${relationValue}/${relationMin})`;
+        }
         if(telecomLocked){
           return `Requires ${requiredTelecoms} connected telecoms (${telecomCount}/${requiredTelecoms})`;
         }
@@ -7949,12 +7988,12 @@ once:true`
 
       const refreshLockState=()=>{
         const levelLocked=minLevel && state.level<minLevel;
-        const locked=(unlockCost && !isUnlocked) || telecomLocked;
+        const locked=(unlockCost && !isUnlocked) || telecomLocked || relationLocked;
         card.classList.toggle('locked',locked);
         travelBtn.dataset.locked=(locked || levelLocked) ? 'true' : 'false';
         travelBtn.disabled=locked || levelLocked;
         travelBtn.title=locked
-          ? (telecomLocked ? `Requires ${requiredTelecoms} connected telecoms` : 'Unlock required')
+          ? (telecomLocked ? `Requires ${requiredTelecoms} connected telecoms` : (relationLocked ? `Requires ${getFactionLabel(relationFaction)} relation ${relationMin}` : 'Unlock required'))
           : levelLocked
             ? `Requires level ${minLevel}`
             : 'Plot a route to this location';
@@ -7996,6 +8035,10 @@ once:true`
         }
         if(minLevel && state.level<minLevel){
           setCodex(`Access denied. Reach level ${minLevel} to enter ${exp.meta.name}.`);
+          return;
+        }
+        if(relationLocked){
+          setCodex(`Access denied. Raise ${getFactionLabel(relationFaction)} relation to ${relationMin} to enter ${exp.meta.name}.`);
           return;
         }
         if(telecomLocked){
@@ -8267,17 +8310,21 @@ once:true`
           const normalizedKey=key.toLowerCase();
           if(key==='desc') currentMission.desc += (currentMission.desc?' ':'') + value;
           else if(['time','energy','loot','key'].includes(key)) currentMission[key]=Number(value || 0);
-          else if(['relationmin','relationmax','relationsuccess','relationfail','failchance'].includes(normalizedKey)){
+          else if(['relationmin','relationmax','relationsuccess','relationfail','failchance','oppositionrelationsuccess','oppositionrelationfail'].includes(normalizedKey)){
             const num=Number(value || 0);
             if(normalizedKey==='relationmin') currentMission.relationMin=num;
             else if(normalizedKey==='relationmax') currentMission.relationMax=num;
             else if(normalizedKey==='relationsuccess') currentMission.relationSuccess=num;
             else if(normalizedKey==='relationfail') currentMission.relationFail=num;
             else if(normalizedKey==='failchance') currentMission.failChance=num;
+            else if(normalizedKey==='oppositionrelationsuccess') currentMission.oppositionRelationSuccess=num;
+            else if(normalizedKey==='oppositionrelationfail') currentMission.oppositionRelationFail=num;
           }else if(normalizedKey==='combatchance'){
             currentMission.combatChance=Number(value || 0);
           }else if(normalizedKey==='faction'){
             currentMission.faction=value;
+          }else if(normalizedKey==='oppositionfaction'){
+            currentMission.oppositionFaction=value;
           }else if(normalizedKey==='fixedrewardsonly'){
             currentMission.fixedRewardsOnly=value === 'true';
           }else if(normalizedKey==='fixedrewards'){

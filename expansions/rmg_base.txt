@@ -1,0 +1,103 @@
+@expansion
+id:rmg_base
+name:RMG Base of Operations
+summary:A fortified Redtech Military Group staging base where orders move fast and pay is high. Loot is basic, but credits are plentiful.
+temp:cold
+arrivalDialog:Captain Rook: Keep pace and keep quiet. The base doesn’t shelter slack.
+missionStartDialog:Ops Chief Arlen: You’re here for credits, not comfort. Follow the brief.
+missionEndDialog:Sergeant Kade: Debrief clean. Credits are wired.
+shop:true
+relationFaction:military
+relationMin:3
+
+@door
+label:RMG Fortified Checkpoint
+hint:intense odd jobs, high pay, low-tier loot, shop, rest
+risk:medium
+note:Searchlights rake the barricade as an RMG officer checks your clearance.
+target:command-deck
+
+@scene command-deck
+title:Command Deck Barracks
+desc:Steel bunks and briefing boards line the command deck with a strict quiet order.
+tags:RMG / Military
+option:Rest in the spare bunk => command-deck | risk:low | time:6 | reward:rested | success:hp+8,stamina+10,energy+10,temp=normal,log:The regimented quiet lets you recover. | fail:credits-2,log:An alarm drill cuts your rest short.
+
+@mission
+id:rmg-perimeter-sweep
+label:Perimeter sweep drill
+desc:Walk the outer wall and record breaches before dawn.
+risk:medium
+time:9
+energy:12
+loot:1
+lootType:basic provisions
+faction:military
+relationMin:3
+oppositionFaction:gang
+oppositionRelationSuccess:-1
+fixedRewardsOnly:true
+fixedRewards:credits+18,item:bandage,item:handgun ammo
+event:Militia graffiti found | chance:0.6 | prompt:Graffiti from Abernathy scouts lines the wall. Do you erase it?
+eventOption:Scrub it clean => risk:medium | tag:tech | success:credits+6,item:riot-line tape,log:You clean the wall and get issued extra tape. | fail:credits-4,log:The solvents foul the sensors and you lose time.
+eventOption:Leave it as bait => risk:high | tag:betrayal | success:credits+8,item:rusty flashlight,log:You set a trap and snag a spare light. | fail:hp-6,log:A scout slips in and clips you.
+
+@mission
+id:rmg-briefing-escort
+label:Briefing escort run
+desc:Escort a briefing officer through contested blocks with zero delay.
+risk:high
+time:12
+energy:16
+loot:2
+lootType:field rations
+faction:military
+relationMin:3
+oppositionFaction:gang
+oppositionRelationSuccess:-1
+fixedRewardsOnly:true
+fixedRewards:credits+22,item:field rations,item:handgun ammo
+combatChance:0.45
+event:Officer issues a harsh order | chance:0.55 | prompt:The officer orders you to clear a block fast, civilians be damned.
+eventOption:Slow the pace and shield them => risk:medium | tag:mercy | success:credits+6,item:thermal wrap,log:You keep civilians safe and earn a wrap. | fail:credits-6,log:The officer notes the delay in your file.
+eventOption:Follow the order exactly => risk:high | tag:combat | success:credits+10,item:riot-line tape,log:The escort stays on time. | fail:hp-8,credits-4,log:The block erupts into a fight.
+
+@mission
+id:rmg-signal-intercept
+label:Signal intercept lockdown
+desc:Trace militia chatter and lock down their courier route.
+risk:high
+time:13
+energy:17
+loot:2
+lootType:signal kits
+faction:military
+relationMin:3
+oppositionFaction:gang
+oppositionRelationSuccess:-1
+fixedRewardsOnly:true
+fixedRewards:credits+24,item:wire spool,item:handgun ammo
+combatChance:0.5
+event:Intercept points to a civilian safehouse | chance:0.5 | prompt:The intercept flags a civilian safehouse on the route.
+eventOption:Mark it as off-limits => risk:medium | tag:mercy | success:credits+6,item:comfort liner,log:You protect the safehouse and get a comfort liner. | fail:credits-5,log:Command challenges your report.
+eventOption:Flag it for inspection => risk:high | tag:betrayal | success:credits+10,item:utility coat,log:Command praises your compliance. | fail:hp-7,log:The inspection team gets ambushed.
+
+@mission
+id:rmg-salvage-extract
+label:Redline salvage extraction
+desc:Secure a militarized salvage drop and keep it out of militia hands.
+risk:high
+time:14
+energy:18
+loot:2
+lootType:salvage crates
+faction:military
+relationMin:3
+oppositionFaction:gang
+oppositionRelationSuccess:-1
+fixedRewardsOnly:true
+fixedRewards:credits+26,item:bandage,item:rifle ammo
+combatChance:0.55
+event:Supply drone goes down early | chance:0.6 | prompt:The supply drone crashes and militia scouts are nearby.
+eventOption:Reboot the drone => risk:medium | tag:tech | success:credits+6,item:electronics bits,log:The drone reboots and drops spare parts. | fail:credits-6,log:The reboot fails and you lose time.
+eventOption:Strip it and move fast => risk:high | tag:combat | success:credits+8,item:scrap bundle,log:You strip the drone and sprint out. | fail:hp-9,log:A scout ambush catches you.
