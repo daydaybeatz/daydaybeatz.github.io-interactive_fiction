@@ -1895,9 +1895,15 @@
       }
       return baseRisk;
     };
-    const getZoneDistance=(zoneId)=>{
+    const getBaseZoneDistance=(zoneId)=>{
       if(!zoneId || zoneId==='safehouse') return 0;
       return travelDistanceMap.get(zoneId) ?? TRAVEL_DISTANCE_BASE;
+    };
+    const getZoneDistance=(zoneId,originId=state?.zone?.id)=>{
+      if(zoneId===originId) return 0;
+      const originDistance=getBaseZoneDistance(originId);
+      const targetDistance=getBaseZoneDistance(zoneId);
+      return Math.abs(targetDistance-originDistance);
     };
     const getTravelDurationMs=(distance)=>{
       const seconds=clamp(Math.round(TRAVEL_BASE_SECONDS+(distance*TRAVEL_SECONDS_PER_KM)),TRAVEL_BASE_SECONDS,TRAVEL_MAX_SECONDS);
