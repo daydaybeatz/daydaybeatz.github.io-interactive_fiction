@@ -93,6 +93,45 @@ lootType:high-tier tactical gear
 key:1
 combatChance:0.5
 
+@mission
+id:facility-archives
+label:Cold archive recovery
+desc:Recover purge logs from the sealed archive stacks.
+risk:medium
+time:12
+energy:15
+loot:3
+lootType:archival intel
+event:Frozen archive terminal | chance:0.6 | prompt:The terminal is iced over, but the purge logs are inside.
+eventOption:Warm the lines carefully => risk:medium | tag:tech | success:item:data cartridge,credits+10,log:The terminal thaws and you copy the logs. | fail:temp-2,credits-3,log:The circuits freeze solid.
+eventOption:Smash the panel and grab drives => risk:high | tag:combat | success:item:signal jammer,log:You crack the panel and yank a jammer. | fail:hp-7,log:The housing snaps back and cuts you.
+
+@mission
+id:facility-drone-bay
+label:Drone bay salvage
+desc:Strip disabled security drones for parts and tools.
+risk:high
+time:13
+energy:17
+loot:4
+lootType:drone parts
+event:Bay power surge | chance:0.55 | prompt:The drone racks whine to life in a power surge.
+eventOption:Jam the bay controls => risk:high | tag:tech | success:item:drone core,credits+12,log:The surge dies and you claim a core. | fail:hp-8,log:The bay locks you in with an active drone.
+eventOption:Trigger the fire suppression => risk:medium | tag:stealth | success:item:flashbang,log:The foam blinds the drones while you grab a flashbang. | fail:credits-5,log:The foam clogs your pack and slows you down.
+
+@mission
+id:facility-briefing-room
+label:Briefing room sweep
+desc:Search the sealed briefing room for emergency caches and officer kits.
+risk:medium
+time:11
+energy:14
+loot:3
+lootType:officer kits
+event:Whistleblower tape | chance:1 | prompt:A taped confession implicates the Directorate. What do you do?
+eventOption:Send it to the resistance => risk:medium | tag:mercy | success:credits+8,item:wire spool,log:The resistance pays for the evidence. | fail:credits-4,log:The signal gets traced and you bail.
+eventOption:Sell it back to the Directorate => risk:high | tag:betrayal | success:credits+16,item:painkillers,log:The Directorate pays for silence. | fail:hp-6,credits-5,log:A handler tries to double-cross you.
+
 @quest
 id:facility-telecom
 title:Reconnect the facility telecom grid

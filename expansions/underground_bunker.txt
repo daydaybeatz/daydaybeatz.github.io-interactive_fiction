@@ -72,6 +72,45 @@ lootType:sealed caches
 unlockFlag:secret-bunker-mission
 consumeFlag:secret-bunker-mission
 
+@mission
+id:bunker-waterline
+label:Waterline check
+desc:Inspect the flooded maintenance line for filters and clean water.
+risk:low
+time:10
+energy:12
+loot:2
+lootType:water supplies
+event:Waterline rupture | chance:0.6 | prompt:A pressure line cracks and water floods the corridor.
+eventOption:Clamp the rupture => risk:low | tag:tech | success:item:canteen tablets,credits+5,log:You stop the leak and find tablets. | fail:temp-2,log:Cold water soaks your gear.
+eventOption:Ride the surge to the cache => risk:medium | tag:stealth | success:item:water canister,credits+6,log:The surge carries you to a canister stash. | fail:hp-5,log:The surge slams you into a bulkhead.
+
+@mission
+id:bunker-barracks
+label:Barracks cleanup
+desc:Clear the old barracks for extra clothing bundles and spare tools.
+risk:low
+time:9
+energy:11
+loot:2
+lootType:clothing bundles
+event:Squatter refuses to leave | chance:1 | prompt:A squatter refuses to leave the barracks without a cut.
+eventOption:Offer a ration and move them on => risk:low | tag:mercy | success:credits+4,item:mess hall apron,log:The squatter hands over a spare apron. | fail:credits-3,log:The squatter wastes time with demands.
+eventOption:Drive them out => risk:medium | tag:combat | success:item:reinforced gloves,credits+6,log:You clear the room and find gloves. | fail:hp-4,log:The squatter swings a pipe and tags you.
+
+@mission
+id:bunker-generator
+label:Generator room haul
+desc:Salvage tools and parts from the silent generator room.
+risk:medium
+time:12
+energy:15
+loot:3
+lootType:power parts
+event:Generator sparkback | chance:0.55 | prompt:A sparkback arcs across the generator coils.
+eventOption:Ground the coils with scrap => risk:medium | tag:tech | success:item:wire spool,credits+8,log:You ground the coils and salvage a spool. | fail:hp-6,log:The arc singes your gear.
+eventOption:Grab what you can and run => risk:high | tag:stealth | success:item:scrap wiring,credits+10,log:You snatch wiring and escape. | fail:credits-5,log:The rush costs you supplies.
+
 @quest
 id:bunker-telecom-1
 title:Trace the telecom line

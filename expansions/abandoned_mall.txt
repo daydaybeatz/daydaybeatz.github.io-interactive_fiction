@@ -60,6 +60,45 @@ event:Lost shopper hides in the office | chance:1 | prompt:A frightened scav beg
 eventOption:Split the cache and guide them out => risk:medium | tag:mercy | success:credits+6,item:queue jacket,log:They share a warm jacket in gratitude. | fail:credits-4,log:The scav panics and draws attention.
 eventOption:Lock them out and take it all => risk:high | tag:betrayal | success:credits+16,item:instant noodles,log:You secure the cache and pocket extra rations. | fail:hp-6,credits-5,log:The scav slams the door and sets off a chase.
 
+@mission
+id:mall-arcade-hunt
+label:Arcade prize hunt
+desc:Scour the arcade cabinets and prize vaults for stashed food and tech.
+risk:medium
+time:11
+energy:13
+loot:3
+lootType:mall odds & ends
+event:Prize vault lockout | chance:0.6 | prompt:The prize vault shutters shut with your hand inside. How do you handle it?
+eventOption:Bypass the lock with a thin tool => risk:medium | tag:tech | success:item:flare paint,credits+6,log:You pop the latch and pocket spare flare paint. | fail:hp-4,log:The shutter snaps down on your wrist.
+eventOption:Rip the door open => risk:high | tag:combat | success:item:store runner shoes,log:The door buckles and you grab light shoes. | fail:hp-7,log:The metal edge tears your sleeve and skin.
+
+@mission
+id:mall-parking-garage
+label:Parking garage sweep
+desc:Search the dim parking decks for overlooked supply bins.
+risk:medium
+time:12
+energy:15
+loot:3
+lootType:parking salvage
+event:Family locks themselves in a van | chance:1 | prompt:A frightened family calls for escort out of the garage.
+eventOption:Escort them to the exit => risk:medium | tag:mercy | success:credits+8,item:sale-day hoodie,log:They thank you with a clean hoodie. | fail:credits-4,log:The detour draws unwanted attention.
+eventOption:Take their fuel and move on => risk:high | tag:betrayal | success:item:water canister,credits+10,log:You siphon fuel and grab their canister. | fail:hp-6,log:The van door slams and clips your knee.
+
+@mission
+id:mall-utility-tunnels
+label:Utility tunnel cache
+desc:Drop into the service tunnels for power parts and locked lockers.
+risk:high
+time:13
+energy:17
+loot:4
+lootType:power parts
+event:Coolant pipe burst | chance:0.55 | prompt:A coolant line ruptures, flooding the tunnel in freezing mist.
+eventOption:Patch the line and keep moving => risk:high | tag:tech | success:item:spare filter,credits+8,log:You seal the leak and salvage a spare filter. | fail:hp-6,temp-2,log:The chill bites through your gear.
+eventOption:Retreat and reroute => risk:medium | tag:stealth | success:item:coil battery,log:You slip away and find a battery stash. | fail:credits-5,log:The detour costs you supplies.
+
 @quest
 id:mall-power-1
 title:Trace the power breakers

@@ -75,6 +75,45 @@ lootType:stormglass salvage
 unlockFlag:secret-citadel-mission
 consumeFlag:secret-citadel-mission
 
+@mission
+id:citadel-resonance-run
+label:Resonance conduit run
+desc:Stabilize the humming conduits to reach sealed caches.
+risk:high
+time:14
+energy:19
+loot:4
+lootType:resonance caches
+event:Resonance spike | chance:0.6 | prompt:A resonance spike rattles the conduits around you.
+eventOption:Balance the conduits => risk:high | tag:tech | success:item:capacitor lattice,credits+10,log:You steady the spike and claim a lattice. | fail:hp-7,temp+2,log:The spike jolts your gear.
+eventOption:Ride the spike to the cache => risk:deadly | tag:stealth | success:item:stormglass shard,credits+12,log:The surge carries you to a shard stash. | fail:hp-10,log:The surge throws you off the path.
+
+@mission
+id:citadel-glass-gardens
+label:Glass garden patrol
+desc:Cross the glass gardens for relic fruit and crystal tools.
+risk:high
+time:13
+energy:18
+loot:4
+lootType:stormglass provisions
+event:Garden keeper pleads | chance:1 | prompt:A keeper asks you to leave the relic fruit untouched.
+eventOption:Respect the request => risk:high | tag:mercy | success:item:static fruit bar,credits+6,log:The keeper shares a fruit bar with you. | fail:credits-4,log:The keeper refuses to guide you further.
+eventOption:Take the relic fruit => risk:deadly | tag:betrayal | success:item:ionized brew,credits+14,log:You take the fruit and snag an ionized brew. | fail:hp-8,credits-5,log:The keeper calls in sentries.
+
+@mission
+id:citadel-ward-sweep
+label:Storm ward sweep
+desc:Clear storm wards for shielded caches and weapon parts.
+risk:deadly
+time:15
+energy:21
+loot:5
+lootType:warded weapons
+event:Ward shield fluctuation | chance:0.55 | prompt:The ward shield flickers, threatening to lock you in.
+eventOption:Reset the ward anchors => risk:deadly | tag:tech | success:item:phase relay kit,credits+12,log:You reset the anchors and salvage a relay kit. | fail:hp-9,log:The shield snaps closed and shocks you.
+eventOption:Force the door before it seals => risk:high | tag:combat | success:item:stormglass rapier,log:You force your way through and take a rapier. | fail:hp-11,log:The door slams and you take a hit.
+
 @quest
 id:citadel-telecom-1
 title:Connect citadel telecoms (part 1/2)

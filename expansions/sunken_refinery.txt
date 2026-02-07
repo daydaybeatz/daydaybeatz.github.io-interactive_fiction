@@ -75,6 +75,45 @@ lootType:pressure salvage
 unlockFlag:secret-refinery-mission
 consumeFlag:secret-refinery-mission
 
+@mission
+id:refinery-slag-run
+label:Slag chute run
+desc:Descend the slag chutes for heavy salvage and sealed rations.
+risk:high
+time:14
+energy:18
+loot:4
+lootType:slag salvage
+event:Chute chain slip | chance:0.6 | prompt:A chain slips on the chute rig, threatening to drop you.
+eventOption:Re-seat the chain => risk:high | tag:tech | success:item:slag shard,credits+10,log:You fix the chain and claim a slag shard. | fail:hp-7,log:The rig lurches and bruises you.
+eventOption:Jump to a side ladder => risk:deadly | tag:stealth | success:item:ember ration,credits+12,log:You leap clear and snag a hot ration. | fail:hp-9,log:The jump goes wide and you crash hard.
+
+@mission
+id:refinery-duct-scout
+label:Vent duct scout
+desc:Follow the hot vent duct to find tool crates and coolant packs.
+risk:high
+time:13
+energy:17
+loot:4
+lootType:coolant kits
+event:Vent flare-up | chance:0.55 | prompt:A vent flare-up roars toward you.
+eventOption:Seal the duct and wait => risk:high | tag:tech | success:item:foam canister,credits+8,log:You seal the duct and grab a foam canister. | fail:hp-6,temp+2,log:The flare scorches your sleeves.
+eventOption:Dash through the heat => risk:deadly | tag:combat | success:item:payload crate,log:You push through and pull a crate. | fail:hp-10,log:The heat overwhelms you.
+
+@mission
+id:refinery-brine-locker
+label:Brine locker breach
+desc:Crack a brine locker with sealed water and parts.
+risk:high
+time:12
+energy:16
+loot:3
+lootType:brine supplies
+event:Locker guardian offers a deal | chance:1 | prompt:A lone guardian offers access for a cut. Decide.
+eventOption:Pay the cut and share => risk:high | tag:mercy | success:item:hardened canteen,credits+6,log:They unlock the locker and share a canteen. | fail:credits-4,log:They take your cut and vanish.
+eventOption:Force the locker open => risk:deadly | tag:betrayal | success:item:reactor shard,credits+14,log:You force it open and snag a shard. | fail:hp-9,credits-6,log:The guardian fights you off.
+
 @quest
 id:refinery-telecom-1
 title:Connect refinery telecoms (part 1/2)

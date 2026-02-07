@@ -74,6 +74,45 @@ lootType:advanced medical stock
 key:1
 combatChance:0.5
 
+@mission
+id:clinic-lab-coldcase
+label:Cold lab specimen run
+desc:Collect sealed specimens from the chilled research lab.
+risk:medium
+time:12
+energy:15
+loot:3
+lootType:lab specimens
+event:Lab freezer alarm | chance:0.6 | prompt:The freezer alarm wails and draws attention.
+eventOption:Shut off the breaker => risk:medium | tag:tech | success:item:filtered water pack,credits+8,log:You silence the alarm and grab clean packs. | fail:temp-2,log:The breaker sparks and the lab chills fast.
+eventOption:Grab and bolt => risk:high | tag:combat | success:item:compact medkit,log:You snatch a medkit and sprint out. | fail:hp-6,log:You take a hit fleeing the ward.
+
+@mission
+id:clinic-inpatient-ward
+label:Inpatient ward sweep
+desc:Search patient rooms for emergency care kits and rations.
+risk:medium
+time:11
+energy:14
+loot:3
+lootType:care kits
+event:Family refuses evacuation | chance:1 | prompt:A family refuses to leave without their missing sibling.
+eventOption:Help search the ward => risk:medium | tag:mercy | success:credits+6,item:bandage,log:You find them and earn a bandage stash. | fail:credits-4,log:The search wastes time and draws patrols.
+eventOption:Take the kits and leave => risk:high | tag:betrayal | success:item:shock gel,credits+10,log:You take the kits and grab shock gel. | fail:hp-6,log:The family lashes out as you leave.
+
+@mission
+id:clinic-oxygen-line
+label:Oxygen line repair
+desc:Stabilize the oxygen line to reach sealed cabinets.
+risk:high
+time:13
+energy:17
+loot:4
+lootType:respiratory supplies
+event:Oxygen flare burst | chance:0.55 | prompt:A flare ignites near the oxygen line.
+eventOption:Vent the corridor => risk:high | tag:tech | success:item:anti-rad serum,credits+10,log:You vent the line and recover a serum case. | fail:hp-7,log:The flare scorches your gear.
+eventOption:Duck into a side room => risk:medium | tag:stealth | success:item:hardened canteen,log:You avoid the blast and grab a canteen. | fail:credits-5,log:The blast rattles your pack.
+
 @quest
 id:medical-telecom
 title:Reconnect the clinic telecoms

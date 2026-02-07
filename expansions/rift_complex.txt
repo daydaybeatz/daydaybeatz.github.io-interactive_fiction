@@ -73,6 +73,45 @@ lootType:rift salvage
 unlockFlag:secret-rift-mission
 consumeFlag:secret-rift-mission
 
+@mission
+id:rift-observatory
+label:Orbiting observatory raid
+desc:Climb the floating observatory for anomaly data and rare tools.
+risk:deadly
+time:18
+energy:24
+loot:6
+lootType:rift research cache
+event:Observation lens misaligns | chance:0.6 | prompt:The observation lens spins out of alignment mid-run.
+eventOption:Stabilize the lens array => risk:deadly | tag:tech | success:item:gravity lens,credits+16,log:You lock the array and salvage a gravity lens. | fail:hp-10,rads+6,log:The lens flares and scorches you.
+eventOption:Move in the lens shadow => risk:high | tag:stealth | success:item:drift moss tea,credits+10,log:You slip through and take the tea. | fail:hp-8,credits-5,log:The lens flare tags you.
+
+@mission
+id:rift-lattice-run
+label:Lattice relay run
+desc:Run the rift lattice to recover signal nodes and sealed water.
+risk:high
+time:16
+energy:22
+loot:5
+lootType:rift signal nodes
+event:Lattice echo offers a trade | chance:1 | prompt:A lattice echo offers coordinates in exchange for a sample.
+eventOption:Share a sample => risk:high | tag:mercy | success:item:riftwater flask,credits+12,log:The echo yields clean water coordinates. | fail:credits-4,log:The echo fades before you confirm.
+eventOption:Capture the echo => risk:deadly | tag:betrayal | success:item:rift crystal splinter,credits+18,log:You trap the echo and seize a crystal. | fail:hp-11,credits-6,log:The echo lashes out.
+
+@mission
+id:rift-anomaly-garden
+label:Anomaly garden sweep
+desc:Harvest anomaly growths and rare provisions from the rift garden.
+risk:high
+time:15
+energy:21
+loot:5
+lootType:rift provisions
+event:Garden guardian blocks the path | chance:0.55 | prompt:A guardian entity blocks the growths you need.
+eventOption:Appease it with signals => risk:high | tag:tech | success:item:anomaly scanner,credits+12,log:You appease the guardian and recover a scanner. | fail:hp-8,rads+4,log:The guardian lashes out.
+eventOption:Force your way through => risk:deadly | tag:combat | success:item:riftwater flask,log:You push through and claim riftwater. | fail:hp-12,credits-5,log:The guardian strikes you down.
+
 @quest
 id:rift-telecom-1
 title:Connect rift telecoms (part 1/2)
